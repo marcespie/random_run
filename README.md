@@ -1,8 +1,10 @@
 # random_run
-run a command with randomized list of arguments. C++17
+run a command with randomized list of arguments (C++17)
+
 read the manpage for details
 
-Basically, this is a toy project to learn some features of C++17
+Basically, this is a toy project to learn some features of C++17. Code is slightly over board,
+especially the conversion from char *argv[] into a vector<string>
 
 It's still useful, I have some large collections of files that I occasionally want to peruse
 (videos / music) in a random order, but the tools I use are not too good for that.
