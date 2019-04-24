@@ -27,7 +27,7 @@
 auto
 usage()
 {
-	std::cerr << "Usage: random_run [-1v] [-x regex] cmd [flags --] params...\n";
+	std::cerr << "Usage: random_run [-1v] [-n maxargs] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -121,7 +121,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 		
 		// we didn't do them all yet */
 		if (i != b2) {
-			int k = fork();
+			auto k = fork();
 			if (k == -1)
 				system_error("fork");
 			else if (k == 0)
@@ -162,8 +162,8 @@ int
 main(int argc, char *argv[])
 {
 	// all option values
-	auto justone = false;
-	auto verbose = false;
+	bool justone = false;
+	bool verbose = false;
 	std::size_t maxargs = 0;
 	std::vector<std::regex> exclude;
 
