@@ -92,8 +92,10 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 		v.push_back(i->data());
 
 	auto reset = v.size();
-	if (v.size() > maxargs) {
-		std::cerr << "Can't obey -n, too many parameters before --\n";
+	if (maxargs && v.size() >= maxargs) {
+		std::cerr << "Can't obey -n" << maxargs << 
+		    ", initial command is too long ("
+		    << v.size() << " words)\n";
 		usage();
 	}
 
