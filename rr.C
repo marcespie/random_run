@@ -135,14 +135,13 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 		}
 		if (verbose) {
 			std::copy(begin(v), end(v), 
-			    std::ostream_iterator<std::string>(std::cout, " "));
+			    std::ostream_iterator<char *>(std::cout, " "));
 			std::cout << "\n";
 		}
 		v.push_back(nullptr);
 
-		
-		// we didn't do them all yet */
 		if (i != b2) {
+			// we didn't do them all yet */
 			auto k = fork();
 			if (k == -1)
 				system_error("fork");
@@ -165,7 +164,7 @@ find_end(const char *s)
 
 template<typename T>
 void
-get_int_value(const char *s, T& r)
+get_integer_value(const char *s, T& r)
 {
 	auto p = find_end(s);
 	auto [ptr, e] = std::from_chars(s, p, r);
@@ -195,7 +194,7 @@ main(int argc, char *argv[])
 			verbose = true;
 			break;
 		case 'n':
-			get_int_value(optarg, maxargs);
+			get_integer_value(optarg, maxargs);
 			break;
 		case '1':
 			justone = true;
