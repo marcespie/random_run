@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <regex>
+#include <cstring>
 #include <charconv>
 #include <sys/wait.h>
 
@@ -31,14 +32,38 @@ usage()
 	exit(1);
 }
 
-auto
-string_vector(int ac, char *av[])
+// XXX quick&dirty reimplementation of a very small part of span
+// to be trashed once C++20 is standard
+template<typename T>
+class minispan
 {
-	std::vector<std::string> result;
+	T *first;
+	size_t count;
+public:
+	minispan(T *first_, size_t count_): first{first_}, count{count_}
+	{
+	}
+	auto begin()
+	{
+		return first;
+	}
+	auto end()
+	{
+		return first+count;
+	}
+};
 
-	for (int i = 0; i != ac; i++)
-		result.emplace_back(av[i]);
-	return result;
+// since we're not in std, Koenig lookup doesn't apply
+// ... so we must declare our own begin/end
+template<typename T>
+inline auto begin(minispan<T>& s)
+{
+	return s.begin();
+}
+template<typename T>
+inline auto end(minispan<T>& s)
+{
+	return s.end();
 }
 
 void
@@ -89,7 +114,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 	std::vector<char *> v;
 	// first push the actual command
 	for (auto i = a1; i != b1; ++i)
-		v.push_back(i->data());
+		v.push_back(*i);
 
 	auto reset = v.size();
 	if (maxargs && v.size() >= maxargs) {
@@ -111,7 +136,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 					break;
 				}
 			if (!found)
-				v.push_back(i->data());
+				v.push_back(*i);
 		}
 		if (verbose) {
 			std::copy(begin(v), end(v), 
@@ -140,7 +165,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 auto
 find_end(const char *s)
 {
-	return s + std::char_traits<char>::length(s);
+	return s + strlen(s);
 }
 
 template<typename T>
@@ -199,8 +224,7 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	auto v = string_vector(argc, argv);
-
+	auto v = minispan(argv, argc);
 
 	auto start = begin(v);
 
@@ -213,7 +237,7 @@ main(int argc, char *argv[])
 	auto it = start_parm;
 
 	while (it != end(v)) {
-		if (*it == "--")
+		if (strcmp(*it, "--") == 0)
 			break;
 		++it;
 	}
