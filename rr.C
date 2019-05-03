@@ -32,39 +32,34 @@ usage()
 	exit(1);
 }
 
+namespace rr {
 // XXX quick&dirty reimplementation of a very small part of span
 // to be trashed once C++20 is standard
-template<typename T>
-class minispan
-{
-	T *first;
-	size_t count;
-public:
-	minispan(T *first_, size_t count_): first{first_}, count{count_}
+	template<typename T>
+	class minispan
 	{
-	}
-	auto begin()
-	{
-		return first;
-	}
-	auto end()
-	{
-		return first+count;
-	}
+		T *first;
+		size_t count;
+	public:
+		minispan(T *first_, size_t count_): first{first_}, count{count_}
+		{
+		}
+		auto begin()
+		{
+			return first;
+		}
+		auto end()
+		{
+			return first+count;
+		}
+	};
+
+	// emulate Koenig lookup
+	using std::begin;
+	using std::end;
 };
 
-// since we're not in std, Koenig lookup doesn't apply
-// ... so we must declare our own begin/end
-template<typename T>
-inline auto begin(minispan<T>& s)
-{
-	return s.begin();
-}
-template<typename T>
-inline auto end(minispan<T>& s)
-{
-	return s.end();
-}
+using rr::minispan;
 
 void
 system_error(const char *msg)
