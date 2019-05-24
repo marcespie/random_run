@@ -125,7 +125,7 @@ may_add(vector<const char *>& v, const char *s,
 {
 	if (any_match(s, x))
 		return;
-	if (o.size() == 0 || any_match(s, x))
+	if (o.size() == 0 || any_match(s, o))
 		v.push_back(s);
 }
 
@@ -301,7 +301,8 @@ main(int argc, char *argv[])
 				// we do also exclude directories
 				if (!any_match(i->c_str(), exclude))
 					for (auto& p: directory_it{*i})
-						w.emplace_back(p);
+						if (!is_directory(p))
+							w.emplace_back(p);
 			} else
 				w.emplace_back(*i);
 		}
