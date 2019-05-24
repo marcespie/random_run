@@ -20,7 +20,7 @@
 .Nd run commands with jumbled parameters
 .Sh SYNOPSIS
 .Nm rr
-.Op Fl 1Nrv
+.Op Fl 1NOrv
 .Op Fl l Ar list
 .Op Fl n Ar maxargs
 .Op Fl o Ar regex
@@ -51,9 +51,22 @@ Do not jumble parameters.
 .It Fl n Ar maxargs
 Like
 .Xr xargs 1 ,
-split the args to the command into batches of at most
+split the command into batches of at most
 .Ar maxargs
-parameters.
+arguments.
+Note that
+.Ar maxargs
+counts the full command line, so
+.Bd -literal -offset indent
+rr -n 3 feh -Z -- *
+.Ed
+.Pp
+will run each batch with exactly one random filename.
+.It Fl O
+Run the command exactly once.
+Requires
+.Fl n Ar maxargs
+as well.
 .It Fl o Ar regex
 Only keep parameters that match
 .Ar regex .
@@ -68,5 +81,5 @@ Filter out parameters that match
 .Pp
 For instance:
 .Bd -literal -offset indent
-random_run xv -maxpect -- *.jpg
+rr xv -maxpect -- *.jpg
 .Ed

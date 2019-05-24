@@ -51,7 +51,7 @@ path_vector(char *av[], int ac)
 auto
 usage()
 {
-	cerr << "Usage: rr [-1Nrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: rr [-1NOrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -78,6 +78,8 @@ system_error(const char *msg)
 void
 really_exec(const vector<const char *>& v)
 {
+	// XXX paths are essentially "movable" strings, so they're const
+	// we can type-pune the const because we won't ever return
 	execvp(v[0], const_cast<char **>(v.data()));
 	system_error("execvp");
 }
@@ -112,9 +114,8 @@ bool
 any_match(const char *s, const vector<regex>& x)
 {
 	for (auto& r: x)
-		if (regex_match(s, r)) {
+		if (regex_match(s, r))
 			return true;
-		}
 	return false;
 }
 
@@ -124,11 +125,7 @@ may_add(vector<const char *>& v, const char *s,
 {
 	if (any_match(s, x))
 		return;
-	if (o.size() == 0) {
-		v.push_back(s);
-		return;
-	}
-	if (any_match(s, x))
+	if (o.size() == 0 || any_match(s, x))
 		v.push_back(s);
 }
 
@@ -136,7 +133,7 @@ template<class it>
 auto
 execp_vector(bool verbose, it a1, it b1, it a2, it b2, 
     const vector<regex>& x, const vector<regex>& o,
-    size_t maxargs)
+    size_t maxargs, bool once)
 {
 	vector<const char *> v;
 	// first push the actual command
@@ -164,7 +161,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 		}
 		v.push_back(nullptr);
 
-		if (i != b2) {
+		if (i != b2 && !once) {
 			// we didn't do them all yet */
 			auto k = fork();
 			if (k == -1)
@@ -203,6 +200,17 @@ get_integer_value(const char *s, T& r)
 	}
 }
 
+void
+add_regex(vector<regex>& v, const char *arg)
+{
+	try {
+		v.emplace_back(arg);
+	} catch (regex_error& e) {
+		cerr << "bad regex " << arg << ": " << e.what() << "\n";
+		usage();
+	}
+}
+
 int 
 main(int argc, char *argv[])
 {
@@ -211,11 +219,12 @@ main(int argc, char *argv[])
 	bool verbose = false;
 	bool recursive = false;
 	bool randomize = true;
+	bool once = false;
 	size_t maxargs = 0;
 	vector<regex> exclude, only;
 	vector<char *> list;
 
-	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:x:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:Ox:")) != -1;)
 		switch(ch) {
 		case 'v':
 			verbose = true;
@@ -233,27 +242,16 @@ main(int argc, char *argv[])
 			justone = true;
 			break;
 		case 'o':
-			try {
-				only.emplace_back(optarg);
-			} catch (regex_error& e) {
-				cerr << "bad regex " << optarg << ": "
-				    << e.what() << "\n";
-				usage();
-			}
-
+			add_regex(only, optarg);
+			break;
+		case 'O':
+			once = true;
 			break;
 		case 'l':
 			list.push_back(optarg);
 			break;
 		case 'x':
-			try {
-				exclude.emplace_back(optarg);
-			} catch (regex_error& e) {
-				cerr << "bad regex " << optarg << ": "
-				    << e.what() << "\n";
-				usage();
-			}
-
+			add_regex(exclude, optarg);
 			break;
 		default:
 			usage();
@@ -262,6 +260,10 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	if (argc == 0)
+		usage();
+
+	// non sensical
+	if (once && !maxargs)
 		usage();
 
 	auto v = path_vector(argv, argc);
@@ -292,10 +294,11 @@ main(int argc, char *argv[])
 
 	auto end_it = end(v);
 
-	vector<path> w;
+	vector<path> w; // needs to be at function scope
 	if (recursive) {
 		for (auto i = it; i != end_it; ++i) {
 			if (is_directory(*i)) {
+				// we do also exclude directories
 				if (!any_match(i->c_str(), exclude))
 					for (auto& p: directory_it{*i})
 						w.emplace_back(p);
@@ -315,6 +318,6 @@ main(int argc, char *argv[])
 		end_it = it+1;
 
 	execp_vector(verbose, start, end_start, it, end_it, exclude, only, 
-	    maxargs);
+	    maxargs, once);
 	exit(1);
 }
