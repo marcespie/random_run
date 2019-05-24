@@ -20,8 +20,10 @@
 .Nd run commands with jumbled parameters
 .Sh SYNOPSIS
 .Nm rr
-.Op Fl 1v
+.Op Fl 1Nrv
+.Op Fl l Ar list
 .Op Fl n Ar maxargs
+.Op Fl o Ar regex
 .Op Fl x Ar regex
 .Bk -words
 .Ar cmd
@@ -37,15 +39,26 @@ keeping options in the same order up to the
 marker, then jumbling all subsequent parameters
 in a random order.
 The options are as follows:
-.Bl -tag -width keyword
+.Bl -tag -width keyword123
 .It Fl 1
 Keep just one random parameter for running.
+.It Fl l Ar list
+Add the contents of file
+.Ar list
+to the parameters, each line being a single parameter.
+.It Fl N
+Do not jumble parameters.
 .It Fl n Ar maxargs
 Like
 .Xr xargs 1 ,
 split the args to the command into batches of at most
 .Ar maxargs
 parameters.
+.It Fl o Ar regex
+Only keep parameters that match
+.Ar regex .
+.It Fl r
+Scan parameters and recursively expand each directory.
 .It Fl v
 Echo the command being run before running it.
 .It Fl x Ar regex

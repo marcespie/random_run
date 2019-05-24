@@ -43,7 +43,7 @@ path_vector(char *av[], int ac)
 auto
 usage()
 {
-	std::cerr << "Usage: rr [-1rv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
+	std::cerr << "Usage: rr [-1Nrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
