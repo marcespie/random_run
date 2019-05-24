@@ -25,6 +25,7 @@
 #include <charconv>
 #include <sys/wait.h>
 #include <filesystem>
+#include <fstream>
 
 using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
@@ -38,11 +39,25 @@ path_vector(char *av[], int ac)
 	return result;
 }
 
+
 auto
 usage()
 {
 	std::cerr << "Usage: random_run [-1rv] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
+}
+
+void
+add_lines(std::vector<path>& r, const char *fname)
+{
+	std::ifstream f;
+	f.open(fname);
+	if (!f.is_open()) {
+		std::cerr << "failed to open " << fname << "\n";
+		usage();
+	}
+	for (std::string line; std::getline(f, line); ) 
+		r.emplace_back(line);
 }
 
 void
@@ -190,8 +205,9 @@ main(int argc, char *argv[])
 	bool randomize = true;
 	std::size_t maxargs = 0;
 	std::vector<std::regex> exclude, only;
+	std::vector<char *> list;
 
-	for (int ch; (ch = getopt(argc, argv, "v1rn:No:x:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:x:")) != -1;)
 		switch(ch) {
 		case 'v':
 			verbose = true;
@@ -218,6 +234,9 @@ main(int argc, char *argv[])
 			}
 
 			break;
+		case 'l':
+			list.push_back(optarg);
+			break;
 		case 'x':
 			try {
 				exclude.emplace_back(optarg);
@@ -238,6 +257,8 @@ main(int argc, char *argv[])
 		usage();
 
 	auto v = path_vector(argv, argc);
+	for (auto& filename: list)
+		add_lines(v, filename);
 
 	auto start = begin(v);
 
