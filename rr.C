@@ -56,7 +56,7 @@ add_lines(std::vector<path>& r, const char *fname)
 		std::cerr << "failed to open " << fname << "\n";
 		usage();
 	}
-	for (std::string line; std::getline(f, line); ) 
+	for (std::string line; getline(f, line); ) 
 		r.emplace_back(line);
 }
 
@@ -104,7 +104,7 @@ bool
 any_match(const char *s, const std::vector<std::regex>& x)
 {
 	for (auto& r: x)
-		if (std::regex_match(s, r)) {
+		if (regex_match(s, r)) {
 			return true;
 		}
 	return false;
