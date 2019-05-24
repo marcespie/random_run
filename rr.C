@@ -31,9 +31,12 @@ using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
 using std::vector;
 using std::regex;
+using std::regex_error;
 using std::cerr;
 using std::cout;
 using std::ifstream;
+using std::string;
+using std::ostream_iterator;
 
 auto
 path_vector(char *av[], int ac)
@@ -61,7 +64,7 @@ add_lines(vector<path>& r, const char *fname)
 		cerr << "failed to open " << fname << "\n";
 		usage();
 	}
-	for (std::string line; getline(f, line); ) 
+	for (string line; getline(f, line); ) 
 		r.emplace_back(line);
 }
 
@@ -133,7 +136,7 @@ template<class it>
 auto
 execp_vector(bool verbose, it a1, it b1, it a2, it b2, 
     const vector<regex>& x, const vector<regex>& o,
-    std::size_t maxargs)
+    size_t maxargs)
 {
 	vector<const char *> v;
 	// first push the actual command
@@ -156,7 +159,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 			may_add(v, i->c_str(), x, o);
 		if (verbose) {
 			copy(begin(v), end(v), 
-			    std::ostream_iterator<const char *>(cout, " "));
+			    ostream_iterator<const char *>(cout, " "));
 			cout << "\n";
 		}
 		v.push_back(nullptr);
@@ -208,7 +211,7 @@ main(int argc, char *argv[])
 	bool verbose = false;
 	bool recursive = false;
 	bool randomize = true;
-	std::size_t maxargs = 0;
+	size_t maxargs = 0;
 	vector<regex> exclude, only;
 	vector<char *> list;
 
@@ -232,7 +235,7 @@ main(int argc, char *argv[])
 		case 'o':
 			try {
 				only.emplace_back(optarg);
-			} catch (std::regex_error& e) {
+			} catch (regex_error& e) {
 				cerr << "bad regex " << optarg << ": "
 				    << e.what() << "\n";
 				usage();
@@ -245,7 +248,7 @@ main(int argc, char *argv[])
 		case 'x':
 			try {
 				exclude.emplace_back(optarg);
-			} catch (std::regex_error& e) {
+			} catch (regex_error& e) {
 				cerr << "bad regex " << optarg << ": "
 				    << e.what() << "\n";
 				usage();
