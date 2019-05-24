@@ -85,27 +85,28 @@ deal_with_child(int pid)
 	}
 }
 
+bool 
+any_match(const char *s, const std::vector<std::regex>& x)
+{
+	for (auto& r: x)
+		if (std::regex_match(s, r)) {
+			return true;
+		}
+	return false;
+}
+
 void
 may_add(std::vector<const char *>& v, const char *s,
     const std::vector<std::regex>& x, const std::vector<std::regex>& o)
 {
-	bool exclude = false;
-	for (auto& r: x)
-		if (std::regex_match(s, r)) {
-			exclude = true;
-			break;
-		}
-	if (exclude)
+	if (any_match(s, x))
 		return;
-	if (o.size() == 0)
+	if (o.size() == 0) {
 		v.push_back(s);
-	else {
-		for (auto&r: o)
-			if (std::regex_match(s, r)) {
-				v.push_back(s);
-				return;
-			}
+		return;
 	}
+	if (any_match(s, x))
+		v.push_back(s);
 }
 
 template<class it>
@@ -186,16 +187,20 @@ main(int argc, char *argv[])
 	bool justone = false;
 	bool verbose = false;
 	bool recursive = false;
+	bool randomize = true;
 	std::size_t maxargs = 0;
 	std::vector<std::regex> exclude, only;
 
-	for (int ch; (ch = getopt(argc, argv, "v1rn:o:x:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1rn:No:x:")) != -1;)
 		switch(ch) {
 		case 'v':
 			verbose = true;
 			break;
 		case 'n':
 			get_integer_value(optarg, maxargs);
+			break;
+		case 'N':
+			randomize = false;
 			break;
 		case 'r':
 			recursive = true;
@@ -261,20 +266,22 @@ main(int argc, char *argv[])
 	std::vector<path> w;
 	if (recursive) {
 		for (auto i = it; i != end_it; ++i) {
-			if (is_directory(*i))
-				for (auto& p: directory_it{*i})
-					w.emplace_back(p);
-			else
+			if (is_directory(*i)) {
+				if (!any_match(i->c_str(), exclude))
+					for (auto& p: directory_it{*i})
+						w.emplace_back(p);
+			} else
 				w.emplace_back(*i);
 		}
 		it = begin(w);
 		end_it = end(w);
 	} 
 
-	// this is the random part
-	std::random_device rd;
-	std::mt19937 g(rd());
-	shuffle(it, end_it, g);
+	if (randomize) {
+		std::random_device rd;
+		std::mt19937 g(rd());
+		shuffle(it, end_it, g);
+	}
 	if (justone)
 		end_it = it+1;
 
