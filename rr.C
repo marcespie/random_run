@@ -29,11 +29,16 @@
 
 using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
+using std::vector;
+using std::regex;
+using std::cerr;
+using std::cout;
+using std::ifstream;
 
 auto
 path_vector(char *av[], int ac)
 {
-	std::vector<path> result;
+	vector<path> result;
 	for (int i = 0; i != ac; i++)
 		result.emplace_back(av[i]);
 	return result;
@@ -43,17 +48,17 @@ path_vector(char *av[], int ac)
 auto
 usage()
 {
-	std::cerr << "Usage: rr [-1Nrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: rr [-1Nrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
 void
-add_lines(std::vector<path>& r, const char *fname)
+add_lines(vector<path>& r, const char *fname)
 {
-	std::ifstream f;
+	ifstream f;
 	f.open(fname);
 	if (!f.is_open()) {
-		std::cerr << "failed to open " << fname << "\n";
+		cerr << "failed to open " << fname << "\n";
 		usage();
 	}
 	for (std::string line; getline(f, line); ) 
@@ -63,12 +68,12 @@ add_lines(std::vector<path>& r, const char *fname)
 void
 system_error(const char *msg)
 {
-	std::cerr << msg << ": " << strerror(errno) << "\n";
+	cerr << msg << ": " << strerror(errno) << "\n";
 	exit(1);
 }
 
 void
-really_exec(const std::vector<const char *>& v)
+really_exec(const vector<const char *>& v)
 {
 	execvp(v[0], const_cast<char **>(v.data()));
 	system_error("execvp");
@@ -82,7 +87,7 @@ deal_with_child(int pid)
 	if (e == -1)
 		system_error("waitpid");
 	if (e != pid) {
-		std::cerr << "waitpid exited with " << e << 
+		cerr << "waitpid exited with " << e << 
 		    "(shouldn't happen)\n";
 		exit(1);
 	}
@@ -90,18 +95,18 @@ deal_with_child(int pid)
 	if (WIFEXITED(r)) {
 		auto s = WEXITSTATUS(r);
 		if (s != 0) {
-			std::cerr << "Command exited with "<< s << "\n";
+			cerr << "Command exited with "<< s << "\n";
 			exit(1);
 		}
 	} else {
 		auto s = WTERMSIG(r);
-		std::cerr << "Command exited on signal #"<< s << "\n";
+		cerr << "Command exited on signal #"<< s << "\n";
 		exit(1);
 	}
 }
 
 bool 
-any_match(const char *s, const std::vector<std::regex>& x)
+any_match(const char *s, const vector<regex>& x)
 {
 	for (auto& r: x)
 		if (regex_match(s, r)) {
@@ -111,8 +116,8 @@ any_match(const char *s, const std::vector<std::regex>& x)
 }
 
 void
-may_add(std::vector<const char *>& v, const char *s,
-    const std::vector<std::regex>& x, const std::vector<std::regex>& o)
+may_add(vector<const char *>& v, const char *s,
+    const vector<regex>& x, const vector<regex>& o)
 {
 	if (any_match(s, x))
 		return;
@@ -127,17 +132,17 @@ may_add(std::vector<const char *>& v, const char *s,
 template<class it>
 auto
 execp_vector(bool verbose, it a1, it b1, it a2, it b2, 
-    const std::vector<std::regex>& x, const std::vector<std::regex>& o,
+    const vector<regex>& x, const vector<regex>& o,
     std::size_t maxargs)
 {
-	std::vector<const char *> v;
+	vector<const char *> v;
 	// first push the actual command
 	for (auto i = a1; i != b1; ++i)
 		v.push_back(i->c_str());
 
 	auto reset = v.size();
 	if (maxargs && v.size() >= maxargs) {
-		std::cerr << "Can't obey -n" << maxargs << 
+		cerr << "Can't obey -n" << maxargs << 
 		    ", initial command is too long ("
 		    << v.size() << " words)\n";
 		usage();
@@ -151,8 +156,8 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 			may_add(v, i->c_str(), x, o);
 		if (verbose) {
 			std::copy(begin(v), end(v), 
-			    std::ostream_iterator<const char *>(std::cout, " "));
-			std::cout << "\n";
+			    std::ostream_iterator<const char *>(cout, " "));
+			cout << "\n";
 		}
 		v.push_back(nullptr);
 
@@ -185,12 +190,12 @@ get_integer_value(const char *s, T& r)
 	auto p = find_end(s);
 	auto [ptr, e] = std::from_chars(s, p, r);
 	if (e != std::errc(0)) {
-		std::cerr << "bad numeric value " << s << ": " << 
+		cerr << "bad numeric value " << s << ": " << 
 		    std::make_error_code(e).message() << "\n";
 		usage();
 	}
 	if (ptr != p) {
-		std::cerr << "trailing chars after numeric parameter: " << s << "\n";
+		cerr << "trailing chars after numeric parameter: " << s << "\n";
 		usage();
 	}
 }
@@ -204,8 +209,8 @@ main(int argc, char *argv[])
 	bool recursive = false;
 	bool randomize = true;
 	std::size_t maxargs = 0;
-	std::vector<std::regex> exclude, only;
-	std::vector<char *> list;
+	vector<regex> exclude, only;
+	vector<char *> list;
 
 	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:x:")) != -1;)
 		switch(ch) {
@@ -228,7 +233,7 @@ main(int argc, char *argv[])
 			try {
 				only.emplace_back(optarg);
 			} catch (std::regex_error& e) {
-				std::cerr << "bad regex " << optarg << ": "
+				cerr << "bad regex " << optarg << ": "
 				    << e.what() << "\n";
 				usage();
 			}
@@ -241,7 +246,7 @@ main(int argc, char *argv[])
 			try {
 				exclude.emplace_back(optarg);
 			} catch (std::regex_error& e) {
-				std::cerr << "bad regex " << optarg << ": "
+				cerr << "bad regex " << optarg << ": "
 				    << e.what() << "\n";
 				usage();
 			}
@@ -284,7 +289,7 @@ main(int argc, char *argv[])
 
 	auto end_it = end(v);
 
-	std::vector<path> w;
+	vector<path> w;
 	if (recursive) {
 		for (auto i = it; i != end_it; ++i) {
 			if (is_directory(*i)) {
