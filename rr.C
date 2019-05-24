@@ -24,42 +24,26 @@
 #include <cstring>
 #include <charconv>
 #include <sys/wait.h>
+#include <filesystem>
+
+using std::filesystem::path;
+using directory_it = std::filesystem::recursive_directory_iterator;
+
+auto
+path_vector(char *av[], int ac)
+{
+	std::vector<path> result;
+	for (int i = 0; i != ac; i++)
+		result.emplace_back(av[i]);
+	return result;
+}
 
 auto
 usage()
 {
-	std::cerr << "Usage: random_run [-1v] [-n maxargs] [-x regex] cmd [flags --] params...\n";
+	std::cerr << "Usage: random_run [-1rv] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
-
-namespace rr {
-// XXX quick&dirty reimplementation of a very small part of span
-// to be trashed once C++20 is standard
-	template<typename T>
-	class minispan
-	{
-		T *first;
-		size_t count;
-	public:
-		minispan(T *first_, size_t count_): first{first_}, count{count_}
-		{
-		}
-		auto begin()
-		{
-			return first;
-		}
-		auto end()
-		{
-			return first+count;
-		}
-	};
-
-	// emulate Koenig lookup
-	using std::begin;
-	using std::end;
-};
-
-using rr::minispan;
 
 void
 system_error(const char *msg)
@@ -69,9 +53,9 @@ system_error(const char *msg)
 }
 
 void
-really_exec(const std::vector<char *>& v)
+really_exec(const std::vector<const char *>& v)
 {
-	execvp(v[0], v.data());
+	execvp(v[0], const_cast<char **>(v.data()));
 	system_error("execvp");
 }
 
@@ -101,15 +85,39 @@ deal_with_child(int pid)
 	}
 }
 
+void
+may_add(std::vector<const char *>& v, const char *s,
+    const std::vector<std::regex>& x, const std::vector<std::regex>& o)
+{
+	bool exclude = false;
+	for (auto& r: x)
+		if (std::regex_match(s, r)) {
+			exclude = true;
+			break;
+		}
+	if (exclude)
+		return;
+	if (o.size() == 0)
+		v.push_back(s);
+	else {
+		for (auto&r: o)
+			if (std::regex_match(s, r)) {
+				v.push_back(s);
+				return;
+			}
+	}
+}
+
 template<class it>
 auto
 execp_vector(bool verbose, it a1, it b1, it a2, it b2, 
-    const std::vector<std::regex>& x, std::size_t maxargs)
+    const std::vector<std::regex>& x, const std::vector<std::regex>& o,
+    std::size_t maxargs)
 {
-	std::vector<char *> v;
+	std::vector<const char *> v;
 	// first push the actual command
 	for (auto i = a1; i != b1; ++i)
-		v.push_back(*i);
+		v.push_back(i->c_str());
 
 	auto reset = v.size();
 	if (maxargs && v.size() >= maxargs) {
@@ -123,19 +131,11 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 
 	while (true) {
 		// then the filtered params (some ?)
-		for (;i != b2 && v.size() != maxargs; ++i) {
-			bool found = false;
-			for (auto& s: x)
-				if (std::regex_match(*i, s)) {
-					found = true;
-					break;
-				}
-			if (!found)
-				v.push_back(*i);
-		}
+		for (;i != b2 && v.size() != maxargs; ++i)
+			may_add(v, i->c_str(), x, o);
 		if (verbose) {
 			std::copy(begin(v), end(v), 
-			    std::ostream_iterator<char *>(std::cout, " "));
+			    std::ostream_iterator<const char *>(std::cout, " "));
 			std::cout << "\n";
 		}
 		v.push_back(nullptr);
@@ -185,10 +185,11 @@ main(int argc, char *argv[])
 	// all option values
 	bool justone = false;
 	bool verbose = false;
+	bool recursive = false;
 	std::size_t maxargs = 0;
-	std::vector<std::regex> exclude;
+	std::vector<std::regex> exclude, only;
 
-	for (int ch; (ch = getopt(argc, argv, "v1n:x:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1rn:o:x:")) != -1;)
 		switch(ch) {
 		case 'v':
 			verbose = true;
@@ -196,8 +197,21 @@ main(int argc, char *argv[])
 		case 'n':
 			get_integer_value(optarg, maxargs);
 			break;
+		case 'r':
+			recursive = true;
+			break;
 		case '1':
 			justone = true;
+			break;
+		case 'o':
+			try {
+				only.emplace_back(optarg);
+			} catch (std::regex_error& e) {
+				std::cerr << "bad regex " << optarg << ": "
+				    << e.what() << "\n";
+				usage();
+			}
+
 			break;
 		case 'x':
 			try {
@@ -218,7 +232,7 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	auto v = minispan(argv, argc);
+	auto v = path_vector(argv, argc);
 
 	auto start = begin(v);
 
@@ -231,7 +245,7 @@ main(int argc, char *argv[])
 	auto it = start_parm;
 
 	while (it != end(v)) {
-		if (strcmp(*it, "--") == 0)
+		if (strcmp(it->c_str(), "--") == 0)
 			break;
 		++it;
 	}
@@ -242,14 +256,29 @@ main(int argc, char *argv[])
 		++it;
 	}
 
+	auto end_it = end(v);
+
+	std::vector<path> w;
+	if (recursive) {
+		for (auto i = it; i != end_it; ++i) {
+			if (is_directory(*i))
+				for (auto& p: directory_it{*i})
+					w.emplace_back(p);
+			else
+				w.emplace_back(*i);
+		}
+		it = begin(w);
+		end_it = end(w);
+	} 
+
 	// this is the random part
 	std::random_device rd;
 	std::mt19937 g(rd());
-	shuffle(it, end(v), g);
-	auto end_it = end(v);
+	shuffle(it, end_it, g);
 	if (justone)
 		end_it = it+1;
 
-	execp_vector(verbose, start, end_start, it, end_it, exclude, maxargs);
+	execp_vector(verbose, start, end_start, it, end_it, exclude, only, 
+	    maxargs);
 	exit(1);
 }
