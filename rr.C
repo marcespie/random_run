@@ -155,7 +155,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 		for (;i != b2 && v.size() != maxargs; ++i)
 			may_add(v, i->c_str(), x, o);
 		if (verbose) {
-			std::copy(begin(v), end(v), 
+			copy(begin(v), end(v), 
 			    std::ostream_iterator<const char *>(cout, " "));
 			cout << "\n";
 		}
@@ -191,7 +191,7 @@ get_integer_value(const char *s, T& r)
 	auto [ptr, e] = std::from_chars(s, p, r);
 	if (e != std::errc(0)) {
 		cerr << "bad numeric value " << s << ": " << 
-		    std::make_error_code(e).message() << "\n";
+		    make_error_code(e).message() << "\n";
 		usage();
 	}
 	if (ptr != p) {
