@@ -22,6 +22,7 @@
 .Nm rr
 .Op Fl 1EeiNOrv
 .Op Fl l Ar list
+.Op Fl m Ar margin
 .Op Fl n Ar maxargs
 .Op Fl o Ar regex
 .Op Fl x Ar regex
@@ -76,6 +77,13 @@ and case-insensitive after.
 Add the contents of file
 .Ar list
 to the parameters, each line being a single parameter.
+.It Fl m Ar margin
+If arguments run too long,
+.Nm
+will split the command into batches instead of running into the 
+kernel limit, allowing for
+.Ar margin
+bytes.
 .It Fl N
 Do not jumble parameters.
 .It Fl n Ar maxargs

@@ -46,16 +46,17 @@ struct options;
 [[noreturn]] void system_error(const char*);
 auto find_end(const char*);
 void add_regex(vector<regex>&, const char*, const options&);
-const options get_options(int, char*[]);
+const options get_options(int, char*[], char*[]);
 auto path_vector(char*[], int);
 void add_lines(vector<path>&, const char*);
 [[noreturn]] void exec(const vector<const char*>&);
 void deal_with_child(int, bool);
 bool any_match(const char*, const vector<regex>&);
-void may_add(vector<const char*>&, const char*, const options&);
+bool keep(const char*, const options&);
 template<typename T> void get_integer_value(const char*, T&);
 template<typename it> [[noreturn]] auto run_commands(it, it, it, it, 
     const options&);
+size_t compute_maxsize(char*[], size_t);
 
 //
 // boilerplate support
@@ -96,6 +97,8 @@ struct options {
 	bool nocase = false;
 	bool eregex = false;
 	size_t maxargs = 0;
+	size_t margin = 0;
+	size_t maxsize;
 	vector<regex> exclude, only;
 	vector<char*> list;
 };
@@ -138,18 +141,34 @@ add_regex(vector<regex>& v, const char* arg, const options& o)
 	}
 }
 
+size_t
+compute_maxsize(char* envp[], size_t margin)
+{
+	// maxargs for the shell, - path lookup for argv[0]
+	auto maxsize = static_cast<size_t>(
+	    sysconf(_SC_ARG_MAX) - pathconf("/", _PC_PATH_MAX));
+
+	// need to take envp into account
+	for (int i = 0; envp[i] != NULL; ++i)
+		maxsize -= strlen(envp[i])+1;
+	return maxsize - margin;
+}
+
 const options 
-get_options(int argc, char* argv[])
+get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:No:Ox:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:m:No:Ox:")) != -1;)
 		switch(ch) {
 		case 'v':
 			o.verbose = true;
 			break;
 		case 'n':
 			get_integer_value(optarg, o.maxargs);
+			break;
+		case 'm':
+			get_integer_value(optarg, o.margin);
 			break;
 		case 'N':
 			o.randomize = false;
@@ -184,6 +203,8 @@ get_options(int argc, char* argv[])
 		default:
 			usage();
 		}
+	o.maxsize = compute_maxsize(envp, o.margin);
+
 	return o;
 }
 
@@ -265,15 +286,14 @@ deal_with_child(int pid, bool exitonerror)
 	}
 }
 
-void
-may_add(vector<const char*>& v, const char* s, const options& o)
+bool
+keep(const char* s, const options& o)
 {
 	// notice the asymetry: we "exclude" anything
 	if (any_match(s, o.exclude))
-		return;
+		return false;
 	// BUT "only" doesn't kick in if it's not been mentioned
-	if (o.only.size() == 0 || any_match(s, o.only))
-		v.push_back(s);
+	return o.only.size() == 0 || any_match(s, o.only);
 }
 
 // the core of the runner
@@ -285,6 +305,10 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 	// first push the actual command (constant across all runs */
 	for (auto i = a1; i != b1; ++i)
 		v.push_back(i->c_str());
+
+	size_t initial = 0;
+	for (auto& x: v)
+		initial += strlen(x)+1;
 
 	auto reset = v.size();
 	if (o.maxargs && v.size() >= o.maxargs) {
@@ -298,8 +322,16 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 
 	while (true) {
 		// then the filtered params (some ?)
-		for (;i != b2 && v.size() != o.maxargs; ++i)
-			may_add(v, i->c_str(), o);
+		size_t current = initial;
+		for (;i != b2 && v.size() != o.maxargs; ++i) {
+			auto s = i->c_str();
+			if (!keep(s, o))
+				continue;
+			if (current + strlen(s)+1 >= o.maxsize)
+				break;
+			current += strlen(s)+1;
+			v.push_back(s);
+		}
 		if (o.verbose) {
 			copy(begin(v), end(v), 
 			    ostream_iterator<const char*>(cout, " "));
@@ -326,12 +358,12 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 
 
 int 
-main(int argc, char* argv[])
+main(int argc, char* argv[], char* envp[])
 {
 	if (pledge("stdio rpath proc exec", NULL) != 0)
 		system_error("pledge");
 
-	auto o = get_options(argc, argv);
+	auto o = get_options(argc, argv, envp);
 
 	argc -= optind;
 	argv += optind;
