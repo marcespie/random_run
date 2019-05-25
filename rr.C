@@ -173,6 +173,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 			v.resize(reset);
 		} else 
 			// XXX sneaky end of loop, exec doesn't return
+			cout.flush();
 			really_exec(v);
 	}
 }
