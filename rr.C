@@ -64,7 +64,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: rr [-1EeiNOrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: rr [-1EeiNOrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-x regex]\n\tcmd [flags --] params...\n";
 	exit(1);
 }
 
