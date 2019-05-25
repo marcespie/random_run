@@ -27,6 +27,14 @@
 #include <filesystem>
 #include <fstream>
 
+#if !defined(__OpenBSD__)
+int pledge(const char *, const char *)
+{
+	return 0;
+}
+#endif
+
+
 using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
 using std::vector;
@@ -157,7 +165,7 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 		if (verbose) {
 			copy(begin(v), end(v), 
 			    ostream_iterator<const char *>(cout, " "));
-			cout << "\n";
+			cout << std::endl;
 		}
 		v.push_back(nullptr);
 
@@ -173,7 +181,6 @@ execp_vector(bool verbose, it a1, it b1, it a2, it b2,
 			v.resize(reset);
 		} else 
 			// XXX sneaky end of loop, exec doesn't return
-			cout.flush();
 			really_exec(v);
 	}
 }
@@ -224,6 +231,9 @@ main(int argc, char *argv[])
 	size_t maxargs = 0;
 	vector<regex> exclude, only;
 	vector<char *> list;
+
+	if (pledge("stdio rpath proc exec", NULL) != 0)
+		system_error("pledge");
 
 	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:Ox:")) != -1;)
 		switch(ch) {
@@ -310,6 +320,9 @@ main(int argc, char *argv[])
 		it = begin(w);
 		end_it = end(w);
 	} 
+
+	if (pledge("stdio proc exec", NULL) != 0)
+		system_error("pledge");
 
 	if (randomize) {
 		std::random_device rd;
