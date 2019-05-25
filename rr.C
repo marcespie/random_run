@@ -28,14 +28,6 @@
 #include <unistd.h>
 #include <vector>
 
-#if !defined(__OpenBSD__)
-int
-pledge(const char*, const char*)
-{
-	return 0;
-}
-#endif
-
 using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
 using std::vector;
@@ -57,15 +49,17 @@ void add_regex(vector<regex>&, const char*, const options&);
 const options get_options(int, char*[]);
 auto path_vector(char*[], int);
 void add_lines(vector<path>&, const char*);
-[[noreturn]] void really_exec(const vector<const char*>&);
+[[noreturn]] void exec(const vector<const char*>&);
 void deal_with_child(int, bool);
 bool any_match(const char*, const vector<regex>&);
 void may_add(vector<const char*>&, const char*, const options&);
 template<typename T> void get_integer_value(const char*, T&);
-template<typename it> [[noreturn]] auto execp_vector(it, it, it, it, 
+template<typename it> [[noreturn]] auto run_commands(it, it, it, it, 
     const options&);
 
-
+//
+// boilerplate support
+//
 void
 usage()
 {
@@ -76,11 +70,22 @@ usage()
 void
 system_error(const char* msg)
 {
-	cerr << msg << ": " << strerror(errno) << "\n";
+	auto e = strerror(errno);
+	cerr << msg << ": " << e << "\n";
 	exit(1);
 }
 
-// dealing with all options
+#if !defined(__OpenBSD__)
+int
+pledge(const char*, const char*)
+{
+	return 0;
+}
+#endif
+
+//
+// option handling code
+//
 struct options {
 	bool justone = false;
 	bool verbose = false;
@@ -182,7 +187,9 @@ get_options(int argc, char* argv[])
 	return o;
 }
 
-// building the arguments
+// 
+// support for massaging parameters
+//
 auto
 path_vector(char* av[], int ac)
 {
@@ -206,9 +213,19 @@ add_lines(vector<path>& r, const char* fname)
 		r.emplace_back(line);
 }
 
+// filtering on a list of regex
+bool 
+any_match(const char* s, const vector<regex>& x)
+{
+	for (auto& r: x)
+		if (regex_match(s, r))
+			return true;
+	return false;
+}
+
 // actually running commands
 void
-really_exec(const vector<const char*>& v)
+exec(const vector<const char*>& v)
 {
 	// XXX paths are essentially "movable" strings, so they're const
 	// we can type-pune the const because we won't ever return
@@ -216,6 +233,7 @@ really_exec(const vector<const char*>& v)
 	system_error("execvp");
 }
 
+// ... and maybe coming back for more
 void
 deal_with_child(int pid, bool exitonerror)
 {
@@ -247,16 +265,6 @@ deal_with_child(int pid, bool exitonerror)
 	}
 }
 
-// the stuff that deals with regexps
-bool 
-any_match(const char* s, const vector<regex>& x)
-{
-	for (auto& r: x)
-		if (regex_match(s, r))
-			return true;
-	return false;
-}
-
 void
 may_add(vector<const char*>& v, const char* s, const options& o)
 {
@@ -271,10 +279,10 @@ may_add(vector<const char*>& v, const char* s, const options& o)
 // the core of the runner
 template<typename it>
 auto
-execp_vector(it a1, it b1, it a2, it b2, const options& o)
+run_commands(it a1, it b1, it a2, it b2, const options& o)
 {
 	vector<const char*> v;
-	// first push the actual command
+	// first push the actual command (constant across all runs */
 	for (auto i = a1; i != b1; ++i)
 		v.push_back(i->c_str());
 
@@ -300,18 +308,19 @@ execp_vector(it a1, it b1, it a2, it b2, const options& o)
 		v.push_back(nullptr);
 
 		if (i != b2 && !o.once) {
-			// we didn't do them all yet */
+			// we didn't do them all yet, so get ready for
+			// another round
 			auto k = fork();
 			if (k == -1)
 				system_error("fork");
 			else if (k == 0)
-				really_exec(v);
+				exec(v);
 			else
 				deal_with_child(k, o.exitonerror);
 			v.resize(reset);
 		} else 
 			// XXX sneaky end of loop, exec doesn't return
-			really_exec(v);
+			exec(v);
 	}
 }
 
@@ -361,7 +370,7 @@ main(int argc, char* argv[])
 
 	// in the recursive case, fill w with actual file names
 	// and have [it, end_it[  point into w.
-	vector<path> w; 
+	vector<path> w; // ... so w must be at function scope to avoid gc
 	if (o.recursive) {
 		for (auto i = it; i != end_it; ++i) {
 			if (is_directory(*i)) {
@@ -380,6 +389,7 @@ main(int argc, char* argv[])
 	if (pledge("stdio proc exec", NULL) != 0)
 		system_error("pledge");
 
+	// the actual algorithm that started it all
 	if (o.randomize) {
 		std::random_device rd;
 		std::mt19937 g(rd());
@@ -388,5 +398,5 @@ main(int argc, char* argv[])
 	if (o.justone)
 		end_it = it+1;
 
-	execp_vector(start, end_start, it, end_it, o);
+	run_commands(start, end_start, it, end_it, o);
 }
