@@ -20,7 +20,7 @@
 .Nd run commands with jumbled parameters
 .Sh SYNOPSIS
 .Nm rr
-.Op Fl 1NOrv
+.Op Fl 1EeiNOrv
 .Op Fl l Ar list
 .Op Fl n Ar maxargs
 .Op Fl o Ar regex
@@ -42,6 +42,30 @@ The options are as follows:
 .Bl -tag -width keyword123
 .It Fl 1
 Keep just one random parameter for running.
+.It Fl E
+Use extended regular expression syntax in
+.Fl o
+and
+.Fl x
+options.
+Note that this is a position-dependent option.
+You can mix both basic and extended regular expressions
+by specifying
+.Fl E
+after basic regular expressions.
+.It Fl e
+Exit on error after running command.
+.It Fl i
+Use case insensitive regular expressions in
+.Fl o
+and
+.Fl x
+options.
+Note that this is a position-dependent option.
+You can mix both basic and extended regular expressions
+by specifying
+.Fl E
+after basic regular expressions.
 .It Fl l Ar list
 Add the contents of file
 .Ar list
@@ -64,9 +88,6 @@ rr -n 3 feh -Z -- *
 will run each batch with exactly one random filename.
 .It Fl O
 Run the command exactly once.
-Requires
-.Fl n Ar maxargs
-as well.
 .It Fl o Ar regex
 Only keep parameters that match
 .Ar regex .

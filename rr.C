@@ -13,28 +13,28 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#include <vector>
-#include <string>
 #include <algorithm>
-#include <random>
-#include <iostream>
-#include <unistd.h>
 #include <cerrno>
-#include <regex>
-#include <cstring>
 #include <charconv>
-#include <sys/wait.h>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <random>
+#include <regex>
+#include <signal.h>
+#include <string>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <vector>
 
 #if !defined(__OpenBSD__)
 int
-pledge(const char *, const char *)
+pledge(const char*, const char*)
 {
 	return 0;
 }
 #endif
-
 
 using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
@@ -47,15 +47,34 @@ using std::ifstream;
 using std::string;
 using std::ostream_iterator;
 
+
+struct options;
+
+[[noreturn]] void usage();
+[[noreturn]] void system_error(const char*);
+auto find_end(const char*);
+void add_regex(vector<regex>&, const char*, const options&);
+const options get_options(int, char*[]);
+auto path_vector(char*[], int);
+void add_lines(vector<path>&, const char*);
+[[noreturn]] void really_exec(const vector<const char*>&);
+void deal_with_child(int, bool);
+bool any_match(const char*, const vector<regex>&);
+void may_add(vector<const char*>&, const char*, const options&);
+template<typename T> void get_integer_value(const char*, T&);
+template<typename it> [[noreturn]] auto execp_vector(it, it, it, it, 
+    const options&);
+
+
 void
 usage()
 {
-	cerr << "Usage: rr [-1NOrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: rr [-1EeiNOrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
 void
-system_error(const char *msg)
+system_error(const char* msg)
 {
 	cerr << msg << ": " << strerror(errno) << "\n";
 	exit(1);
@@ -68,20 +87,23 @@ struct options {
 	bool recursive = false;
 	bool randomize = true;
 	bool once = false;
+	bool exitonerror = false;
+	bool nocase = false;
+	bool eregex = false;
 	size_t maxargs = 0;
 	vector<regex> exclude, only;
-	vector<char *> list;
+	vector<char*> list;
 };
 
 auto
-find_end(const char *s)
+find_end(const char* s)
 {
 	return s + strlen(s);
 }
 
 template<typename T>
 void
-get_integer_value(const char *s, T& r)
+get_integer_value(const char* s, T& r)
 {
 	auto p = find_end(s);
 	auto [ptr, e] = std::from_chars(s, p, r);
@@ -97,10 +119,14 @@ get_integer_value(const char *s, T& r)
 }
 
 void
-add_regex(vector<regex>& v, const char *arg)
+add_regex(vector<regex>& v, const char* arg, const options& o)
 {
 	try {
-		v.emplace_back(arg);
+		using namespace std::regex_constants;
+		auto flags = o.eregex ? extended : basic;
+		if (o.nocase)
+			flags |= icase;
+		v.emplace_back(arg, flags);
 	} catch (regex_error& e) {
 		cerr << "bad regex " << arg << ": " << e.what() << "\n";
 		usage();
@@ -108,11 +134,11 @@ add_regex(vector<regex>& v, const char *arg)
 }
 
 const options 
-getoptions(int argc, char *argv[])
+get_options(int argc, char* argv[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:Ox:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:No:Ox:")) != -1;)
 		switch(ch) {
 		case 'v':
 			o.verbose = true;
@@ -129,8 +155,17 @@ getoptions(int argc, char *argv[])
 		case '1':
 			o.justone = true;
 			break;
+		case 'i':
+			o.nocase = true;
+			break;
+		case 'e':
+			o.exitonerror = true;
+			break;
+		case 'E':
+			o.eregex = true;
+			break;
 		case 'o':
-			add_regex(o.only, optarg);
+			add_regex(o.only, optarg, o);
 			break;
 		case 'O':
 			o.once = true;
@@ -139,7 +174,7 @@ getoptions(int argc, char *argv[])
 			o.list.push_back(optarg);
 			break;
 		case 'x':
-			add_regex(o.exclude, optarg);
+			add_regex(o.exclude, optarg, o);
 			break;
 		default:
 			usage();
@@ -149,7 +184,7 @@ getoptions(int argc, char *argv[])
 
 // building the arguments
 auto
-path_vector(char *av[], int ac)
+path_vector(char* av[], int ac)
 {
 	vector<path> result;
 	for (int i = 0; i != ac; i++)
@@ -159,7 +194,7 @@ path_vector(char *av[], int ac)
 
 
 void
-add_lines(vector<path>& r, const char *fname)
+add_lines(vector<path>& r, const char* fname)
 {
 	ifstream f;
 	f.open(fname);
@@ -173,16 +208,16 @@ add_lines(vector<path>& r, const char *fname)
 
 // actually running commands
 void
-really_exec(const vector<const char *>& v)
+really_exec(const vector<const char*>& v)
 {
 	// XXX paths are essentially "movable" strings, so they're const
 	// we can type-pune the const because we won't ever return
-	execvp(v[0], const_cast<char **>(v.data()));
+	execvp(v[0], const_cast<char**>(v.data()));
 	system_error("execvp");
 }
 
 void
-deal_with_child(int pid)
+deal_with_child(int pid, bool exitonerror)
 {
 	int r;
 	auto e = waitpid(pid, &r, 0);
@@ -198,18 +233,23 @@ deal_with_child(int pid)
 		auto s = WEXITSTATUS(r);
 		if (s != 0) {
 			cerr << "Command exited with "<< s << "\n";
-			exit(1);
+			if (exitonerror)
+				exit(s);
 		}
 	} else {
 		auto s = WTERMSIG(r);
 		cerr << "Command exited on signal #"<< s << "\n";
-		exit(1);
+		if (exitonerror) {
+			kill(getpid(), s);
+			// in case we didn't die
+			exit(1);
+		}
 	}
 }
 
 // the stuff that deals with regexps
 bool 
-any_match(const char *s, const vector<regex>& x)
+any_match(const char* s, const vector<regex>& x)
 {
 	for (auto& r: x)
 		if (regex_match(s, r))
@@ -218,7 +258,7 @@ any_match(const char *s, const vector<regex>& x)
 }
 
 void
-may_add(vector<const char *>& v, const char *s, const options& o)
+may_add(vector<const char*>& v, const char* s, const options& o)
 {
 	// notice the asymetry: we "exclude" anything
 	if (any_match(s, o.exclude))
@@ -229,11 +269,11 @@ may_add(vector<const char *>& v, const char *s, const options& o)
 }
 
 // the core of the runner
-template<class it>
+template<typename it>
 auto
 execp_vector(it a1, it b1, it a2, it b2, const options& o)
 {
-	vector<const char *> v;
+	vector<const char*> v;
 	// first push the actual command
 	for (auto i = a1; i != b1; ++i)
 		v.push_back(i->c_str());
@@ -254,7 +294,7 @@ execp_vector(it a1, it b1, it a2, it b2, const options& o)
 			may_add(v, i->c_str(), o);
 		if (o.verbose) {
 			copy(begin(v), end(v), 
-			    ostream_iterator<const char *>(cout, " "));
+			    ostream_iterator<const char*>(cout, " "));
 			cout << std::endl;
 		}
 		v.push_back(nullptr);
@@ -267,7 +307,7 @@ execp_vector(it a1, it b1, it a2, it b2, const options& o)
 			else if (k == 0)
 				really_exec(v);
 			else
-				deal_with_child(k);
+				deal_with_child(k, o.exitonerror);
 			v.resize(reset);
 		} else 
 			// XXX sneaky end of loop, exec doesn't return
@@ -277,20 +317,16 @@ execp_vector(it a1, it b1, it a2, it b2, const options& o)
 
 
 int 
-main(int argc, char *argv[])
+main(int argc, char* argv[])
 {
 	if (pledge("stdio rpath proc exec", NULL) != 0)
 		system_error("pledge");
 
-	auto o = getoptions(argc, argv);
+	auto o = get_options(argc, argv);
 
 	argc -= optind;
 	argv += optind;
 	if (argc == 0)
-		usage();
-
-	// non sensical
-	if (o.once && !o.maxargs)
 		usage();
 
 	// create the actual list of args to process
@@ -353,5 +389,4 @@ main(int argc, char *argv[])
 		end_it = it+1;
 
 	execp_vector(start, end_start, it, end_it, o);
-	exit(1);
 }
