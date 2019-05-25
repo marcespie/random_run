@@ -38,34 +38,40 @@ keeping options in the same order up to the
 .Ar --
 marker, then jumbling all subsequent parameters
 in a random order.
+.Pp
 The options are as follows:
 .Bl -tag -width keyword123
 .It Fl 1
 Keep just one random parameter for running.
 .It Fl E
-Use extended regular expression syntax in
-.Fl o
+Use extended regular expression syntax for
+filtering
+.Po Fl o
 and
-.Fl x
-options.
-Note that this is a position-dependent option.
-You can mix both basic and extended regular expressions
-by specifying
-.Fl E
-after basic regular expressions.
+.Fl x Pc .
+By default,
+.Nm
+will use basic regular expression syntax
+.Po
+see
+.Xr regex 3
+.Pc .
+Note that this is a position-dependent option:
+you can specify basic regular expressions
+before
+.Fl E ,
+and extended regular expressions after.
 .It Fl e
 Exit on error after running command.
 .It Fl i
-Use case insensitive regular expressions in
-.Fl o
+Use case-insensitive regular expressions for filtering
+.Po Fl o
 and
-.Fl x
-options.
-Note that this is a position-dependent option.
-You can mix both basic and extended regular expressions
-by specifying
-.Fl E
-after basic regular expressions.
+.Fl x Pc .
+Note that this is a position-dependent option:
+You can specify case-sensitive regular expressions before
+.Fl i ,
+and case-insensitive after.
 .It Fl l Ar list
 Add the contents of file
 .Ar list
@@ -100,7 +106,28 @@ Filter out parameters that match
 .Ar regex .
 .El
 .Pp
-For instance:
+.Sh EXAMPLES
+Run command with options on a random list of files:
 .Bd -literal -offset indent
 rr xv -maxpect -- *.jpg
 .Ed
+.Pp
+Select a specific number of files from a list and display
+them, echo what's actually running:
+.Bd -literal -offset indent
+rr -Ov -n5 feh -Z --bg-center -- *
+.Ed
+.Pp
+Play all mp4 videos under a specific folder in fullscreen,
+limit to what
+.Xr mpv 1
+can manage, do not randomize files:
+.Bd -literal -offset indent
+rr -n1500 -rN -o '.*.mp4' mpv -fs -- videos
+.Ed
+.Pp
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Marc Espie Aq Mt espie@openbsd.org .
