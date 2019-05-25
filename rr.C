@@ -28,7 +28,8 @@
 #include <fstream>
 
 #if !defined(__OpenBSD__)
-int pledge(const char *, const char *)
+int
+pledge(const char *, const char *)
 {
 	return 0;
 }
@@ -46,34 +47,11 @@ using std::ifstream;
 using std::string;
 using std::ostream_iterator;
 
-auto
-path_vector(char *av[], int ac)
-{
-	vector<path> result;
-	for (int i = 0; i != ac; i++)
-		result.emplace_back(av[i]);
-	return result;
-}
-
-
-auto
+void
 usage()
 {
 	cerr << "Usage: rr [-1NOrv] [-l file] [-n maxargs] [-o regex] [-x regex] cmd [flags --] params...\n";
 	exit(1);
-}
-
-void
-add_lines(vector<path>& r, const char *fname)
-{
-	ifstream f;
-	f.open(fname);
-	if (!f.is_open()) {
-		cerr << "failed to open " << fname << "\n";
-		usage();
-	}
-	for (string line; getline(f, line); ) 
-		r.emplace_back(line);
 }
 
 void
@@ -83,107 +61,17 @@ system_error(const char *msg)
 	exit(1);
 }
 
-void
-really_exec(const vector<const char *>& v)
-{
-	// XXX paths are essentially "movable" strings, so they're const
-	// we can type-pune the const because we won't ever return
-	execvp(v[0], const_cast<char **>(v.data()));
-	system_error("execvp");
-}
-
-void
-deal_with_child(int pid)
-{
-	int r;
-	auto e = waitpid(pid, &r, 0);
-	if (e == -1)
-		system_error("waitpid");
-	if (e != pid) {
-		cerr << "waitpid exited with " << e << 
-		    "(shouldn't happen)\n";
-		exit(1);
-	}
-		
-	if (WIFEXITED(r)) {
-		auto s = WEXITSTATUS(r);
-		if (s != 0) {
-			cerr << "Command exited with "<< s << "\n";
-			exit(1);
-		}
-	} else {
-		auto s = WTERMSIG(r);
-		cerr << "Command exited on signal #"<< s << "\n";
-		exit(1);
-	}
-}
-
-bool 
-any_match(const char *s, const vector<regex>& x)
-{
-	for (auto& r: x)
-		if (regex_match(s, r))
-			return true;
-	return false;
-}
-
-void
-may_add(vector<const char *>& v, const char *s,
-    const vector<regex>& x, const vector<regex>& o)
-{
-	if (any_match(s, x))
-		return;
-	if (o.size() == 0 || any_match(s, o))
-		v.push_back(s);
-}
-
-template<class it>
-auto
-execp_vector(bool verbose, it a1, it b1, it a2, it b2, 
-    const vector<regex>& x, const vector<regex>& o,
-    size_t maxargs, bool once)
-{
-	vector<const char *> v;
-	// first push the actual command
-	for (auto i = a1; i != b1; ++i)
-		v.push_back(i->c_str());
-
-	auto reset = v.size();
-	if (maxargs && v.size() >= maxargs) {
-		cerr << "Can't obey -n" << maxargs << 
-		    ", initial command is too long ("
-		    << v.size() << " words)\n";
-		usage();
-	}
-
-	auto i = a2;
-
-	while (true) {
-		// then the filtered params (some ?)
-		for (;i != b2 && v.size() != maxargs; ++i)
-			may_add(v, i->c_str(), x, o);
-		if (verbose) {
-			copy(begin(v), end(v), 
-			    ostream_iterator<const char *>(cout, " "));
-			cout << std::endl;
-		}
-		v.push_back(nullptr);
-
-		if (i != b2 && !once) {
-			// we didn't do them all yet */
-			auto k = fork();
-			if (k == -1)
-				system_error("fork");
-			else if (k == 0)
-				really_exec(v);
-			else
-				deal_with_child(k);
-			v.resize(reset);
-		} else 
-			// XXX sneaky end of loop, exec doesn't return
-			really_exec(v);
-	}
-}
+// dealing with all options
+struct options {
+	bool justone = false;
+	bool verbose = false;
+	bool recursive = false;
+	bool randomize = true;
+	bool once = false;
+	size_t maxargs = 0;
+	vector<regex> exclude, only;
+	vector<char *> list;
+};
 
 auto
 find_end(const char *s)
@@ -219,54 +107,182 @@ add_regex(vector<regex>& v, const char *arg)
 	}
 }
 
-int 
-main(int argc, char *argv[])
+const options 
+getoptions(int argc, char *argv[])
 {
-	// all option values
-	bool justone = false;
-	bool verbose = false;
-	bool recursive = false;
-	bool randomize = true;
-	bool once = false;
-	size_t maxargs = 0;
-	vector<regex> exclude, only;
-	vector<char *> list;
-
-	if (pledge("stdio rpath proc exec", NULL) != 0)
-		system_error("pledge");
+	options o;
 
 	for (int ch; (ch = getopt(argc, argv, "v1l:rn:No:Ox:")) != -1;)
 		switch(ch) {
 		case 'v':
-			verbose = true;
+			o.verbose = true;
 			break;
 		case 'n':
-			get_integer_value(optarg, maxargs);
+			get_integer_value(optarg, o.maxargs);
 			break;
 		case 'N':
-			randomize = false;
+			o.randomize = false;
 			break;
 		case 'r':
-			recursive = true;
+			o.recursive = true;
 			break;
 		case '1':
-			justone = true;
+			o.justone = true;
 			break;
 		case 'o':
-			add_regex(only, optarg);
+			add_regex(o.only, optarg);
 			break;
 		case 'O':
-			once = true;
+			o.once = true;
 			break;
 		case 'l':
-			list.push_back(optarg);
+			o.list.push_back(optarg);
 			break;
 		case 'x':
-			add_regex(exclude, optarg);
+			add_regex(o.exclude, optarg);
 			break;
 		default:
 			usage();
 		}
+	return o;
+}
+
+// building the arguments
+auto
+path_vector(char *av[], int ac)
+{
+	vector<path> result;
+	for (int i = 0; i != ac; i++)
+		result.emplace_back(av[i]);
+	return result;
+}
+
+
+void
+add_lines(vector<path>& r, const char *fname)
+{
+	ifstream f;
+	f.open(fname);
+	if (!f.is_open()) {
+		cerr << "failed to open " << fname << "\n";
+		usage();
+	}
+	for (string line; getline(f, line); ) 
+		r.emplace_back(line);
+}
+
+// actually running commands
+void
+really_exec(const vector<const char *>& v)
+{
+	// XXX paths are essentially "movable" strings, so they're const
+	// we can type-pune the const because we won't ever return
+	execvp(v[0], const_cast<char **>(v.data()));
+	system_error("execvp");
+}
+
+void
+deal_with_child(int pid)
+{
+	int r;
+	auto e = waitpid(pid, &r, 0);
+	if (e == -1)
+		system_error("waitpid");
+	if (e != pid) {
+		cerr << "waitpid exited with " << e << 
+		    "(shouldn't happen)\n";
+		exit(1);
+	}
+		
+	if (WIFEXITED(r)) {
+		auto s = WEXITSTATUS(r);
+		if (s != 0) {
+			cerr << "Command exited with "<< s << "\n";
+			exit(1);
+		}
+	} else {
+		auto s = WTERMSIG(r);
+		cerr << "Command exited on signal #"<< s << "\n";
+		exit(1);
+	}
+}
+
+// the stuff that deals with regexps
+bool 
+any_match(const char *s, const vector<regex>& x)
+{
+	for (auto& r: x)
+		if (regex_match(s, r))
+			return true;
+	return false;
+}
+
+void
+may_add(vector<const char *>& v, const char *s, const options& o)
+{
+	// notice the asymetry: we "exclude" anything
+	if (any_match(s, o.exclude))
+		return;
+	// BUT "only" doesn't kick in if it's not been mentioned
+	if (o.only.size() == 0 || any_match(s, o.only))
+		v.push_back(s);
+}
+
+// the core of the runner
+template<class it>
+auto
+execp_vector(it a1, it b1, it a2, it b2, const options& o)
+{
+	vector<const char *> v;
+	// first push the actual command
+	for (auto i = a1; i != b1; ++i)
+		v.push_back(i->c_str());
+
+	auto reset = v.size();
+	if (o.maxargs && v.size() >= o.maxargs) {
+		cerr << "Can't obey -n" << o.maxargs << 
+		    ", initial command is too long ("
+		    << v.size() << " words)\n";
+		usage();
+	}
+
+	auto i = a2;
+
+	while (true) {
+		// then the filtered params (some ?)
+		for (;i != b2 && v.size() != o.maxargs; ++i)
+			may_add(v, i->c_str(), o);
+		if (o.verbose) {
+			copy(begin(v), end(v), 
+			    ostream_iterator<const char *>(cout, " "));
+			cout << std::endl;
+		}
+		v.push_back(nullptr);
+
+		if (i != b2 && !o.once) {
+			// we didn't do them all yet */
+			auto k = fork();
+			if (k == -1)
+				system_error("fork");
+			else if (k == 0)
+				really_exec(v);
+			else
+				deal_with_child(k);
+			v.resize(reset);
+		} else 
+			// XXX sneaky end of loop, exec doesn't return
+			really_exec(v);
+	}
+}
+
+
+int 
+main(int argc, char *argv[])
+{
+	if (pledge("stdio rpath proc exec", NULL) != 0)
+		system_error("pledge");
+
+	auto o = getoptions(argc, argv);
 
 	argc -= optind;
 	argv += optind;
@@ -274,21 +290,23 @@ main(int argc, char *argv[])
 		usage();
 
 	// non sensical
-	if (once && !maxargs)
+	if (o.once && !o.maxargs)
 		usage();
 
+	// create the actual list of args to process
 	auto v = path_vector(argv, argc);
-	for (auto& filename: list)
+	for (auto& filename: o.list)
 		add_lines(v, filename);
 
 	auto start = begin(v);
 
-	// first parameter is always the actual
-	// program name
+	// first parameter is always the actual program name
+	// this computes [start, end_start[ (immovable program)
+	// and [it, end_it[ (actual parameters)
 	auto start_parm = start+1;
 	auto end_start = start_parm;
 
-	// try to figure out option end
+	// and then we skip anything upto a -- if we see one
 	auto it = start_parm;
 
 	while (it != end(v)) {
@@ -300,17 +318,19 @@ main(int argc, char *argv[])
 		it = start_parm;
 	} else {
 		end_start = it;
-		++it;
+		++it; // don't forget to skip the -- !
 	}
 
 	auto end_it = end(v);
 
-	vector<path> w; // needs to be at function scope
-	if (recursive) {
+	// in the recursive case, fill w with actual file names
+	// and have [it, end_it[  point into w.
+	vector<path> w; 
+	if (o.recursive) {
 		for (auto i = it; i != end_it; ++i) {
 			if (is_directory(*i)) {
 				// we do also exclude directories
-				if (!any_match(i->c_str(), exclude))
+				if (!any_match(i->c_str(), o.exclude))
 					for (auto& p: directory_it{*i})
 						if (!is_directory(p))
 							w.emplace_back(p);
@@ -324,15 +344,14 @@ main(int argc, char *argv[])
 	if (pledge("stdio proc exec", NULL) != 0)
 		system_error("pledge");
 
-	if (randomize) {
+	if (o.randomize) {
 		std::random_device rd;
 		std::mt19937 g(rd());
 		shuffle(it, end_it, g);
 	}
-	if (justone)
+	if (o.justone)
 		end_it = it+1;
 
-	execp_vector(verbose, start, end_start, it, end_it, exclude, only, 
-	    maxargs, once);
+	execp_vector(start, end_start, it, end_it, o);
 	exit(1);
 }
