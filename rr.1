@@ -19,7 +19,7 @@
 .Nm rr
 .Nd run commands with jumbled parameters
 .Sh SYNOPSIS
-.Nm rr
+.Nm
 .Op Fl 1EeiNOrv
 .Op Fl l Ar list
 .Op Fl m Ar margin
@@ -95,8 +95,8 @@ arguments.
 Note that
 .Ar maxargs
 counts the full command line, so
-.Bd -literal -offset indent
-rr -n 3 feh -Z -- *
+.Bd -ragged -offset indent
+.Nm Fl n Ns Ar 3 Ar feh Fl Z Fl - Ar *
 .Ed
 .Pp
 will run each batch with exactly one random filename.
@@ -116,33 +116,33 @@ Filter out parameters that match
 .Pp
 .Sh EXAMPLES
 Run command with options on a random list of files:
-.Bd -literal -offset indent
-rr xv -maxpect -- *.jpg
+.Bd -ragged -offset indent
+.Nm Ar xv Fl maxpect Fl - Ar *.jpg
 .Ed
 .Pp
 Select a specific number of files from a list and display
 them, echo what's actually running:
 .Bd -literal -offset indent
-rr -Ov -n5 feh -Z --bg-center -- *
+.Nm Fl Ov Fl n Ns Ar 5 Ar feh Fl Z Fl -bg-center Fl - Ar *
 .Ed
 .Pp
 Play all mp4 videos under a specific folder in fullscreen,
 limit to what
 .Xr mpv 1
 can manage, exit in case of error, do not randomize files:
-.Bd -literal -offset indent
-rr -n1500 -erN -o '.*.mp4' mpv -fs -- videos
+.Bd -ragged -offset indent
+.Nm Fl n Ns Ar 1500 Fl erN Fl o Ar '.*.mp4' Ar mpv Fl fs Fl - Ar videos
 .Ed
 .Pp
 Display a random line from
 .Ar file :
-.Bd -literal -offset indent
-rr -n2 -O -l file echo
+.Bd -ragged -offset indent
+.Nm Fl n Ns Ar 2 Fl O Fl l Ar file Ar echo
 .Ed
 .Pp
 Same thing, different options:
-.Bd -literal -offset indent
-rr -1 -l file echo
+.Bd -ragged -offset indent
+.Nm Fl 1 Fl l Ar file Ar echo
 .Ed
 .Pp
 .Sh AUTHORS

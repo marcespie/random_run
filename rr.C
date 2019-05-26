@@ -39,6 +39,9 @@ using std::ifstream;
 using std::string;
 using std::ostream_iterator;
 
+#if !defined(MYNAME)
+const auto MYNAME = "rr";
+#endif
 
 struct options;
 
@@ -64,7 +67,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: rr [-1EeiNOrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-x regex]\n\tcmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1EeiNOrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-x regex]\n\tcmd [flags --] params...\n";
 	exit(1);
 }
 
