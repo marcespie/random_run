@@ -20,7 +20,7 @@
 .Nd run commands with jumbled parameters
 .Sh SYNOPSIS
 .Nm
-.Op Fl 1EeiNOrv
+.Op Fl 1EeiNOprv
 .Op Fl l Ar list
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
@@ -80,7 +80,7 @@ to the parameters, each line being a single parameter.
 .It Fl m Ar margin
 If arguments run too long,
 .Nm
-will split the command into batches instead of running into the 
+will split the command into batches instead of running into the
 kernel limit, allowing for
 .Ar margin
 bytes.
@@ -105,6 +105,12 @@ Run the command exactly once.
 .It Fl o Ar regex
 Only keep parameters that match
 .Ar regex .
+.It Fl p
+Do not run anything.
+Consider the full argument list as parameters and randomize
+them, then print the list, or parts of it according to
+flags
+.Fl 1On .
 .It Fl r
 Scan parameters and recursively expand each directory.
 .It Fl v
@@ -142,7 +148,7 @@ Display a random line from
 .Pp
 Same thing, different options:
 .Bd -ragged -offset indent
-.Nm Fl 1 Fl l Ar file Ar echo
+.Nm Fl 1pl Ar file
 .Ed
 .Pp
 .Sh AUTHORS

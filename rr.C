@@ -27,6 +27,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include <limits>
 
 using std::filesystem::path;
 using directory_it = std::filesystem::recursive_directory_iterator;
@@ -38,6 +39,7 @@ using std::cout;
 using std::ifstream;
 using std::string;
 using std::ostream_iterator;
+using std::numeric_limits;
 
 #if !defined(MYNAME)
 const auto MYNAME = "rr";
@@ -67,7 +69,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1EeiNOrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-x regex]\n\tcmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1EeiNOprv] [-l file] [-m margin] [-n maxargs] [-o regex] [-x regex]\n\tcmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -99,7 +101,8 @@ struct options {
 	bool exitonerror = false;
 	bool nocase = false;
 	bool eregex = false;
-	size_t maxargs = 0;
+	bool printonly = false;
+	size_t maxargs = numeric_limits<size_t>::max();
 	size_t margin = 0;
 	size_t maxsize;
 	vector<regex> exclude, only;
@@ -162,9 +165,13 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:m:No:Ox:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:m:No:Ox:p")) != -1;)
 		switch(ch) {
 		case 'v':
+			o.verbose = true;
+			break;
+		case 'p':
+			o.printonly = true;
 			o.verbose = true;
 			break;
 		case 'n':
@@ -314,7 +321,7 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 		initial += strlen(x)+1;
 
 	auto reset = v.size();
-	if (o.maxargs && v.size() >= o.maxargs) {
+	if (v.size() >= o.maxargs) {
 		cerr << "Can't obey -n" << o.maxargs << 
 		    ", initial command is too long ("
 		    << v.size() << " words)\n";
@@ -323,7 +330,7 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 
 	auto i = a2;
 
-	while (true) {
+	for(;;v.resize(reset)) {
 		// then the filtered params (some ?)
 		size_t current = initial;
 		for (;i != b2 && v.size() != o.maxargs; ++i) {
@@ -343,6 +350,8 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 		v.push_back(nullptr);
 
 		if (i != b2 && !o.once) {
+			if (o.printonly)
+				continue;
 			// we didn't do them all yet, so get ready for
 			// another round
 			auto k = fork();
@@ -352,11 +361,14 @@ run_commands(it a1, it b1, it a2, it b2, const options& o)
 				exec(v);
 			else
 				deal_with_child(k, o.exitonerror);
-			v.resize(reset);
-		} else 
+		} else {
+			if (o.printonly)
+				break;
 			// XXX sneaky end of loop, exec doesn't return
 			exec(v);
+		}
 	}
+	exit(0);
 }
 
 
@@ -370,35 +382,39 @@ main(int argc, char* argv[], char* envp[])
 
 	argc -= optind;
 	argv += optind;
-	if (argc == 0)
-		usage();
-
 	// create the actual list of args to process
 	auto v = path_vector(argv, argc);
 	for (auto& filename: o.list)
 		add_lines(v, filename);
 
+	// set things up for o.printonly
 	auto start = begin(v);
+	auto end_start = begin(v);
+	auto it = start;
 
-	// first parameter is always the actual program name
-	// this computes [start, end_start[ (immovable program)
-	// and [it, end_it[ (actual parameters)
-	auto start_parm = start+1;
-	auto end_start = start_parm;
 
-	// and then we skip anything upto a -- if we see one
-	auto it = start_parm;
+	if (!o.printonly) {
+		if (v.size() == 0)
+			usage();
+		// first parameter is always the actual program name
+		// this computes [start, end_start[ (immovable program)
+		// and [it, end_it[ (actual parameters)
+		auto start_parm = start+1;
+		end_start = start_parm;
 
-	while (it != end(v)) {
-		if (strcmp(it->c_str(), "--") == 0)
-			break;
-		++it;
-	}
-	if (it == end(v)) {
+		// and then we skip anything upto a -- if we see one
 		it = start_parm;
-	} else {
-		end_start = it;
-		++it; // don't forget to skip the -- !
+		while (it != end(v)) {
+			if (strcmp(it->c_str(), "--") == 0)
+				break;
+			++it;
+		}
+		if (it == end(v)) {
+			it = start_parm;
+		} else {
+			end_start = it;
+			++it; // don't forget to skip the -- !
+		}
 	}
 
 	auto end_it = end(v);
