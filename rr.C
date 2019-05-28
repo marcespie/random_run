@@ -89,6 +89,7 @@ pledge(const char*, const char*)
 }
 #endif
 
+const auto MAXSIZE = numeric_limits<size_t>::max();
 //
 // option handling code
 //
@@ -102,7 +103,7 @@ struct options {
 	bool nocase = false;
 	bool eregex = false;
 	bool printonly = false;
-	size_t maxargs = numeric_limits<size_t>::max();
+	size_t maxargs = MAXSIZE;
 	size_t margin = 0;
 	size_t maxsize;
 	vector<regex> exclude, only;
@@ -213,7 +214,10 @@ get_options(int argc, char* argv[], char* envp[])
 		default:
 			usage();
 		}
-	o.maxsize = compute_maxsize(envp, o.margin);
+	if (o.printonly)
+		o.maxsize = MAXSIZE;
+	else
+		o.maxsize = compute_maxsize(envp, o.margin);
 
 	return o;
 }
