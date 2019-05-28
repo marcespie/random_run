@@ -387,54 +387,54 @@ main(int argc, char* argv[], char* envp[])
 	for (auto& filename: o.list)
 		add_lines(v, filename);
 
-	// set things up for o.printonly
-	auto start = begin(v);
-	auto end_start = begin(v);
-	auto it = start;
+	// set things up for o.printonly: no cmd, only args
+	auto cmd = begin(v);
+	auto end_cmd = begin(v);
+	auto args = cmd;
+	auto end_args = end(v);
 
 
 	if (!o.printonly) {
 		if (v.size() == 0)
 			usage();
 		// first parameter is always the actual program name
-		// this computes [start, end_start[ (immovable program)
-		// and [it, end_it[ (actual parameters)
-		auto start_parm = start+1;
-		end_start = start_parm;
+		// this computes [cmd, end_cmd[ (immovable program)
+		// and [args, end_args[ (actual parameters)
+		auto mark = cmd+1; // this is the "new start'
 
 		// and then we skip anything upto a -- if we see one
-		it = start_parm;
-		while (it != end(v)) {
-			if (strcmp(it->c_str(), "--") == 0)
+		args = mark;
+		while (args != end(v)) {
+			if (strcmp(args->c_str(), "--") == 0)
 				break;
-			++it;
+			++args;
 		}
-		if (it == end(v)) {
-			it = start_parm;
+		if (args == end(v)) {
+			end_cmd = mark;
+			args = mark;
 		} else {
-			end_start = it;
-			++it; // don't forget to skip the -- !
+			end_cmd = args;
+			++args; // don't forget to skip the -- !
 		}
 	}
 
-	auto end_it = end(v);
 
 	// in the recursive case, fill w with actual file names
 	// and have [it, end_it[  point into w.
 	vector<path> w; // ... so w must be at function scope to avoid gc
 	if (o.recursive) {
-		for (auto i = it; i != end_it; ++i) {
-			if (is_directory(*i)) {
+		for (auto it = args; it != end_args; ++it) {
+			if (is_directory(*it)) {
 				// we do also exclude directories
-				if (!any_match(i->c_str(), o.exclude))
-					for (auto& p: directory_it{*i})
+				if (!any_match(it->c_str(), o.exclude))
+					for (auto& p: directory_it{*it})
 						if (!is_directory(p))
 							w.emplace_back(p);
 			} else
-				w.emplace_back(*i);
+				w.emplace_back(*it);
 		}
-		it = begin(w);
-		end_it = end(w);
+		args = begin(w);
+		end_args = end(w);
 	} 
 
 	if (pledge("stdio proc exec", NULL) != 0)
@@ -444,10 +444,10 @@ main(int argc, char* argv[], char* envp[])
 	if (o.randomize) {
 		std::random_device rd;
 		std::mt19937 g(rd());
-		shuffle(it, end_it, g);
+		shuffle(args, end_args, g);
 	}
 	if (o.justone)
-		end_it = it+1;
+		end_args = args+1;
 
-	run_commands(start, end_start, it, end_it, o);
+	run_commands(cmd, end_cmd, args, end_args, o);
 }
