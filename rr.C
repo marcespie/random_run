@@ -316,7 +316,7 @@ auto
 run_commands(it a1, it b1, it a2, it b2, const options& o)
 {
 	vector<const char*> v;
-	// first push the actual command (constant across all runs */
+	// first push the actual command (constant across all runs)
 	for (auto i = a1; i != b1; ++i)
 		v.push_back(i->c_str());
 
@@ -404,15 +404,12 @@ main(int argc, char* argv[], char* envp[])
 		// first parameter is always the actual program name
 		// this computes [cmd, end_cmd[ (immovable program)
 		// and [args, end_args[ (actual parameters)
-		auto mark = cmd+1; // this is the "new start'
+		auto mark = cmd+1; // this is the "new start"
 
 		// and then we skip anything upto a -- if we see one
-		args = mark;
-		while (args != end(v)) {
+		for (args = mark; args != end(v); ++args)
 			if (strcmp(args->c_str(), "--") == 0)
 				break;
-			++args;
-		}
 		if (args == end(v)) {
 			end_cmd = mark;
 			args = mark;
@@ -424,7 +421,7 @@ main(int argc, char* argv[], char* envp[])
 
 
 	// in the recursive case, fill w with actual file names
-	// and have [it, end_it[  point into w.
+	// and have [args, end_args[  point into w.
 	vector<path> w; // ... so w must be at function scope to avoid gc
 	if (o.recursive) {
 		for (auto it = args; it != end_args; ++it) {
@@ -439,9 +436,9 @@ main(int argc, char* argv[], char* envp[])
 		}
 		args = begin(w);
 		end_args = end(w);
-	} 
+	}
 
-	if (pledge("stdio proc exec", NULL) != 0)
+	if (pledge(o.printonly ? "stdio" : "stdio proc exec", NULL) != 0)
 		system_error("pledge");
 
 	// the actual algorithm that started it all
