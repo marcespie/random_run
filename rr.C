@@ -241,13 +241,15 @@ add_lines(vector<path>& r, const char* fname)
 	ifstream f;
 	f.open(fname);
 	if (!f.is_open()) {
-		cerr << "failed to open " << fname << "\n";
+		auto e = strerror(errno);
+		cerr << "Failed to open " << fname << ": " << e << "\n";
 		exit(1);
 	}
 	for (string line; getline(f, line); ) 
 		r.emplace_back(line);
 	if (f.fail()) {
-		cerr << "error while reading " << fname << ": " << strerror(errno) << "\n";
+		auto e = strerror(errno);
+		cerr << "Error while reading " << fname << ": " << e << "\n";
 		exit(1);
 	}
 }
