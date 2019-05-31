@@ -242,10 +242,14 @@ add_lines(vector<path>& r, const char* fname)
 	f.open(fname);
 	if (!f.is_open()) {
 		cerr << "failed to open " << fname << "\n";
-		usage();
+		exit(1);
 	}
 	for (string line; getline(f, line); ) 
 		r.emplace_back(line);
+	if (f.fail()) {
+		cerr << "error while reading " << fname << ": " << strerror(errno) << "\n";
+		exit(1);
+	}
 }
 
 // filtering on a list of regex
@@ -447,8 +451,12 @@ main(int argc, char* argv[], char* envp[])
 		std::mt19937 g(rd());
 		shuffle(args, end_args, g);
 	}
-	if (o.justone)
-		end_args = args+1;
+	if (o.justone) {
+		if (end_args != args)
+			end_args = args+1;
+		else
+			usage();
+	}
 
 	run_commands(cmd, end_cmd, args, end_args, o);
 }

@@ -1,4 +1,4 @@
-OPTIMIZE = -O2
+OPTIMIZE = -g -O2
 WARN=-W -Wall -Wno-c++98-compat -Wextra #-Weverything  #clang only! 
 DEBUG =
 CXXFLAGS = $(OPTIMIZE) $(DEBUG) -std=c++17 $(WARN)
