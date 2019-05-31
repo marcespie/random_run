@@ -30,6 +30,7 @@
 #include <vector>
 
 using std::filesystem::path;
+using std::filesystem::is_directory;
 using directory_it = std::filesystem::recursive_directory_iterator;
 using std::vector;
 using std::regex;
@@ -123,12 +124,12 @@ get_integer_value(const char* s, T& r)
 	auto p = find_end(s);
 	auto [ptr, e] = std::from_chars(s, p, r);
 	if (e != std::errc(0)) {
-		cerr << "bad numeric value " << s << ": " << 
+		cerr << "Bad numeric value " << s << ": " << 
 		    make_error_code(e).message() << "\n";
 		usage();
 	}
 	if (ptr != p) {
-		cerr << "trailing chars after numeric parameter: " << s << "\n";
+		cerr << "Trailing chars after numeric parameter: " << s << "\n";
 		usage();
 	}
 }
@@ -143,7 +144,7 @@ add_regex(vector<regex>& v, const char* arg, const options& o)
 			flags |= icase;
 		v.emplace_back(arg, flags);
 	} catch (regex_error& e) {
-		cerr << "bad regex " << arg << ": " << e.what() << "\n";
+		cerr << "Bad regex " << arg << ": " << e.what() << "\n";
 		usage();
 	}
 }
@@ -239,13 +240,17 @@ void
 add_lines(vector<path>& r, const char* fname)
 {
 	ifstream f;
+	if (is_directory(fname)) {
+		cerr << "Can't read directory: " << fname << "\n";
+		exit(1);
+	}
 	f.open(fname);
-	if (!f.is_open()) {
+	if (!f.good()) {
 		auto e = strerror(errno);
 		cerr << "Failed to open " << fname << ": " << e << "\n";
 		exit(1);
 	}
-	for (string line; getline(f, line); ) 
+	for (string line; getline(f, line); )
 		r.emplace_back(line);
 	if (f.bad()) {
 		auto e = strerror(errno);
@@ -405,8 +410,10 @@ main(int argc, char* argv[], char* envp[])
 
 
 	if (!o.printonly) {
-		if (v.size() == 0)
+		if (v.size() == 0) {
+			cerr << "Error: " << MYNAME << " requires a cmd\n";
 			usage();
+		}
 		// first parameter is always the actual program name
 		// this computes [cmd, end_cmd[ (immovable program)
 		// and [args, end_args[ (actual parameters)
@@ -456,8 +463,10 @@ main(int argc, char* argv[], char* envp[])
 	if (o.justone) {
 		if (end_args != args)
 			end_args = args+1;
-		else
+		else {
+			cerr << "Error: " << MYNAME << "-1 requires arguments\n";
 			usage();
+		}
 	}
 
 	run_commands(cmd, end_cmd, args, end_args, o);
