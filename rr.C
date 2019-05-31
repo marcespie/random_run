@@ -247,7 +247,7 @@ add_lines(vector<path>& r, const char* fname)
 	}
 	for (string line; getline(f, line); ) 
 		r.emplace_back(line);
-	if (f.fail()) {
+	if (f.bad()) {
 		auto e = strerror(errno);
 		cerr << "Error while reading " << fname << ": " << e << "\n";
 		exit(1);
