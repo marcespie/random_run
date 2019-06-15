@@ -70,7 +70,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1EeiNOprv] [-l file] [-m margin] [-n maxargs] [-o regex] [-x regex]\n\tcmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1EeiNOprv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -107,7 +107,7 @@ struct options {
 	size_t maxargs = MAXSIZE;
 	size_t margin = 0;
 	size_t maxsize;
-	vector<regex> exclude, only;
+	vector<regex> start, exclude, only;
 	vector<char*> list;
 };
 
@@ -167,7 +167,7 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:m:No:Ox:p")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:m:No:Ox:ps:")) != -1;)
 		switch(ch) {
 		case 'v':
 			o.verbose = true;
@@ -211,6 +211,9 @@ get_options(int argc, char* argv[], char* envp[])
 			break;
 		case 'x':
 			add_regex(o.exclude, optarg, o);
+			break;
+		case 's':
+			add_regex(o.start, optarg, o);
 			break;
 		default:
 			usage();
@@ -451,6 +454,10 @@ main(int argc, char* argv[], char* envp[])
 		end_args = end(w);
 	}
 
+	if (o.start.size())
+		for (auto scan = args; scan != end_args; ++scan)
+			if (any_match(scan->c_str(), o.start))
+				args = scan;
 	if (pledge(o.printonly ? "stdio" : "stdio proc exec", NULL) != 0)
 		system_error("pledge");
 

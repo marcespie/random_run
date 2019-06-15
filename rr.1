@@ -17,7 +17,7 @@
 .Os
 .Sh NAME
 .Nm rr
-.Nd run commands with jumbled parameters
+.Nd run commands with shuffled parameters
 .Sh SYNOPSIS
 .Nm
 .Op Fl 1EeiNOprv
@@ -25,6 +25,7 @@
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
 .Op Fl o Ar regex
+.Op Fl s Ar regex
 .Op Fl x Ar regex
 .Bk -words
 .Ar cmd
@@ -37,7 +38,7 @@ runs
 .Ar cmd ,
 keeping options in the same order up to the
 .Ar --
-marker, then jumbling all subsequent parameters
+marker, then shuffling all subsequent parameters
 in a random order.
 .Pp
 The options are as follows:
@@ -85,7 +86,7 @@ kernel limit, allowing for
 .Ar margin
 bytes.
 .It Fl N
-Do not jumble parameters.
+Do not shuffle parameters.
 .It Fl n Ar maxargs
 Like
 .Xr xargs 1 ,
@@ -113,6 +114,10 @@ flags
 .Fl 1On .
 .It Fl r
 Scan parameters and recursively expand each directory.
+.It Fl s Ar regex
+Before shuffling parameters, skip until a parameter matching
+.Ar regex .
+Last match wins.
 .It Fl v
 Echo the command being run before running it.
 .It Fl x Ar regex
