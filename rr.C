@@ -461,20 +461,22 @@ main(int argc, char* argv[], char* envp[])
 	if (pledge(o.printonly ? "stdio" : "stdio proc exec", NULL) != 0)
 		system_error("pledge");
 
+	if (o.justone && end_args == args) {
+		cerr << "Error: " << MYNAME << "-1 requires arguments\n";
+		usage();
+	}
 	// the actual algorithm that started it all
 	if (o.randomize) {
 		std::random_device rd;
 		std::mt19937 g(rd());
-		shuffle(args, end_args, g);
+		if (o.justone) {
+			std::uniform_int_distribution<> dis(0, end_args-args-1);
+			swap(args[0], args[dis(g)]);
+		} else 
+			shuffle(args, end_args, g);
 	}
-	if (o.justone) {
-		if (end_args != args)
-			end_args = args+1;
-		else {
-			cerr << "Error: " << MYNAME << "-1 requires arguments\n";
-			usage();
-		}
-	}
+	if (o.justone)
+		end_args = args+1;
 
 	run_commands(cmd, end_cmd, args, end_args, o);
 }
