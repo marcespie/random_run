@@ -277,7 +277,7 @@ void
 exec(const vector<const char*>& v)
 {
 	// XXX paths are essentially "movable" strings, so they're const
-	// we can type-pune the const because we won't ever return
+	// let's type-pune the const, we won't ever return anyway
 	execvp(v[0], const_cast<char**>(v.data()));
 	system_error("execvp");
 }
@@ -327,7 +327,9 @@ keep(const char* s, const options& o)
 // the core of the runner
 template<typename it>
 auto
-run_commands(it a1, it b1, it a2, it b2, const options& o)
+run_commands(it a1, it b1, // the actual command that doesn't change
+    it a2, it b2, // parameters to batch through execs
+    const options& o)
 {
 	vector<const char*> v;
 	// first push the actual command (constant across all runs)
