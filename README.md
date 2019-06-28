@@ -3,11 +3,12 @@ run a command with randomized list of arguments (C++17)
 
 read the manpage for details
 
-Basically, this is a toy project to learn some features of C++17. Code is slightly over board,
-especially the conversion from argv into a vector of string.
+Basically, this is a toy project to learn some features of C++17. 
 
-It's still useful, I have some large collections of files that I occasionally want to peruse
-(videos / music) in a random order, but the tools I use are not too good for that.
+It proves to be surprisingly useful to me, I have some large collections 
+of files that I occasionally want to peruse
+(videos / music) in a random order, but the tools I use are not too 
+good for that (between the large lists and the spaces in some names).
 
 For instance, mpv shuffle will replay the same file several times.
 
@@ -24,3 +25,5 @@ you can use something like
 rr -1vr feh -Z --bg-center -- backgrounds/
 
 and presto! you've got your image name.
+
+Also works great with xwallpaper in a hurry.
