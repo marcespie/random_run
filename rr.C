@@ -467,12 +467,13 @@ main(int argc, char* argv[], char* envp[])
 		cerr << "Error: " << MYNAME << "-1 requires arguments\n";
 		usage();
 	}
+	using disttype = std::uniform_int_distribution<decltype(end_args-args)>;
 	// the actual algorithm that started it all
 	if (o.randomize) {
 		std::random_device rd;
 		std::mt19937 g(rd());
 		if (o.justone) {
-			std::uniform_int_distribution<> dis(0, end_args-args-1);
+			disttype dis(0, end_args-args-1);
 			swap(args[0], args[dis(g)]);
 		} else 
 			shuffle(args, end_args, g);
