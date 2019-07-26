@@ -4,8 +4,8 @@ DEBUG =
 CXXFLAGS = $(OPTIMIZE) $(DEBUG) -std=c++17 $(WARN)
 
 # get the extra library for g++
-LDFLAGS-g++ = -lstdc++fs
-LDFLAGS = ${LDFLAGS-${CXX}}
+LDLIBS-g++ = -lstdc++fs
+LDLIBS = ${LDLIBS-${CXX}}
 
 prefix = /usr/local
 DESTDIR =
