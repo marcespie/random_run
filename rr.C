@@ -70,7 +70,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1EeiNOprv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1EeiNOpRrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -104,6 +104,7 @@ struct options {
 	bool nocase = false;
 	bool eregex = false;
 	bool printonly = false;
+	bool rotate = false;
 	size_t maxargs = MAXSIZE;
 	size_t margin = 0;
 	size_t maxsize;
@@ -167,7 +168,7 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eEil:rn:m:No:Ox:ps:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eEil:rRn:m:No:Ox:ps:")) != -1;)
 		switch(ch) {
 		case 'v':
 			o.verbose = true;
@@ -187,6 +188,9 @@ get_options(int argc, char* argv[], char* envp[])
 			break;
 		case 'r':
 			o.recursive = true;
+			break;
+		case 'R':
+			o.rotate = true;
 			break;
 		case '1':
 			o.justone = true;
@@ -472,9 +476,12 @@ main(int argc, char* argv[], char* envp[])
 	if (o.randomize) {
 		std::random_device rd;
 		std::mt19937 g(rd());
-		if (o.justone) {
+		if (o.justone || o.rotate) {
 			disttype dis(0, end_args-args-1);
-			swap(args[0], args[dis(g)]);
+			if (o.rotate)
+				rotate(args, args + dis(g), end_args);
+		    	else
+				swap(args[0], args[dis(g)]);
 		} else 
 			shuffle(args, end_args, g);
 	}

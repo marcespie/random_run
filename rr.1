@@ -20,7 +20,7 @@
 .Nd run commands with shuffled parameters
 .Sh SYNOPSIS
 .Nm
-.Op Fl 1EeiNOprv
+.Op Fl 1EeiNOpRrv
 .Op Fl l Ar list
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
@@ -114,6 +114,8 @@ Consider the full argument list as parameters and randomize
 them, then print the list, or parts of it according to
 flags
 .Fl 1On .
+.It Fl R
+Rotate the arguments instead of shuffling them.
 .It Fl r
 Scan parameters and recursively expand each directory.
 .It Fl s Ar regex
