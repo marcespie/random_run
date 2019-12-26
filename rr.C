@@ -70,7 +70,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1EeiNOpRrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1dEeiNOpRrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -105,6 +105,7 @@ struct options {
 	bool eregex = false;
 	bool printonly = false;
 	bool rotate = false;
+	bool dashdash = true;
 	size_t maxargs = MAXSIZE;
 	size_t margin = 0;
 	size_t maxsize;
@@ -168,8 +169,11 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eEil:rRn:m:No:Ox:ps:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1edEil:rRn:m:No:Ox:ps:")) != -1;)
 		switch(ch) {
+		case 'd':
+			o.dashdash = false;
+			break;
 		case 'v':
 			o.verbose = true;
 			break;
@@ -437,7 +441,9 @@ main(int argc, char* argv[], char* envp[])
 			args = mark;
 		} else {
 			end_cmd = args;
-			++args; // don't forget to skip the -- !
+			++args;	// don't keep -- in the list of parameters
+			if (o.dashdash)	// choose whether we keep it as an option
+				end_cmd++;
 		}
 	}
 

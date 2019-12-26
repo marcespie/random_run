@@ -20,7 +20,7 @@
 .Nd run commands with shuffled parameters
 .Sh SYNOPSIS
 .Nm
-.Op Fl 1EeiNOpRrv
+.Op Fl 1dEeiNOpRrv
 .Op Fl l Ar list
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
@@ -45,6 +45,11 @@ The options are as follows:
 .Bl -tag -width keyword123
 .It Fl 1
 Keep just one random parameter for running.
+.It Fl d
+Without this flag,
+.Ar --
+on the command line will be propagated to each execution of
+the command.
 .It Fl E
 Use extended regular expression syntax for
 filtering
