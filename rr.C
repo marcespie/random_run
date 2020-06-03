@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include <set>
 
 using std::filesystem::path;
 using std::filesystem::is_directory;
@@ -41,6 +42,7 @@ using std::ifstream;
 using std::string;
 using std::ostream_iterator;
 using std::numeric_limits;
+using std::set;
 
 #if !defined(MYNAME)
 const auto MYNAME = "rr";
@@ -70,7 +72,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1dEeiNOpRrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1dDEeiNOpRrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -98,6 +100,7 @@ struct options {
 	bool justone = false;
 	bool verbose = false;
 	bool recursive = false;
+	bool recursedirs = false;
 	bool randomize = true;
 	bool once = false;
 	bool exitonerror = false;
@@ -169,10 +172,14 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1edEil:rRn:m:No:Ox:ps:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:rRn:m:No:Ox:ps:")) != -1;)
 		switch(ch) {
 		case 'd':
 			o.dashdash = false;
+			break;
+		case 'D':
+			o.recursedirs = true;
+			o.recursive = true;
 			break;
 		case 'v':
 			o.verbose = true;
@@ -400,6 +407,29 @@ run_commands(it a1, it b1, // the actual command that doesn't change
 }
 
 
+template<class T>
+void
+recurse(const T& it, vector<path>& w, bool recursedirs)
+{
+	if (recursedirs) {
+		set<path> seen;
+		for (auto& p: directory_it{*it}) {
+			if (is_directory(p)) {
+				seen.insert(p);
+				seen.erase(p.path().parent_path());
+			}
+		}
+
+		for (auto& p: seen)
+			w.emplace_back(p);
+	} else {
+		for (auto& p: directory_it{*it})
+			if (!is_directory(p))
+				w.emplace_back(p);
+	}
+
+}
+
 int 
 main(int argc, char* argv[], char* envp[])
 {
@@ -456,9 +486,7 @@ main(int argc, char* argv[], char* envp[])
 			if (is_directory(*it)) {
 				// we do also exclude directories
 				if (!any_match(it->c_str(), o.exclude))
-					for (auto& p: directory_it{*it})
-						if (!is_directory(p))
-							w.emplace_back(p);
+					recurse(it, w, o.recursedirs);
 			} else
 				w.emplace_back(*it);
 		}
