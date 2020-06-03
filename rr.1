@@ -20,7 +20,7 @@
 .Nd run commands with shuffled parameters
 .Sh SYNOPSIS
 .Nm
-.Op Fl 1dEeiNOpRrv
+.Op Fl 1DdEeiNOpRrv
 .Op Fl l Ar list
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
@@ -45,6 +45,8 @@ The options are as follows:
 .Bl -tag -width keyword123
 .It Fl 1
 Keep just one random parameter for running.
+.It Fl D
+Scan parameters and recursively add each leaf directory.
 .It Fl d
 Without this flag,
 .Ar --
