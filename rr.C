@@ -412,14 +412,16 @@ void
 recurse(const T& it, vector<path>& w, bool recursedirs)
 {
 	if (recursedirs) {
+		// that one is a bit tricky: we first need to record every
+		// directory that doesn't have subdirectories
 		set<path> seen;
 		for (auto& p: directory_it{*it}) {
 			if (is_directory(p)) {
-				seen.insert(p);
+				seen.emplace(p);
 				seen.erase(p.path().parent_path());
 			}
 		}
-
+		// ... then we can build our actual list
 		for (auto& p: seen)
 			w.emplace_back(p);
 	} else {
