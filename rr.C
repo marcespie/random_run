@@ -38,7 +38,9 @@ using std::regex;
 using std::regex_error;
 using std::cerr;
 using std::cout;
+using std::cin;
 using std::ifstream;
+using std::istream;
 using std::string;
 using std::ostream_iterator;
 using std::numeric_limits;
@@ -253,33 +255,36 @@ path_vector(char* av[], int ac)
 	return result;
 }
 
+void 
+add_lines_from(vector<path>& r, istream& f, const char *fname)
+{
+	for (string line; getline(f, line); )
+		r.emplace_back(line);
+	if (f.bad()) {
+		auto e = strerror(errno);
+		cerr << "Error while reading " << fname << ": " << e << "\n";
+		exit(1);
+	}
+}
 
 void
 add_lines(vector<path>& r, const char* fname)
 {
 	if (strcmp(fname, "-") == 0) {
-		for (string line; getline(std::cin, line); )
-			r.emplace_back(line);
+		add_lines_from(r, cin, fname);
 	} else {
-		ifstream f;
 		if (is_directory(fname)) {
 			cerr << "Can't read directory: " << fname << "\n";
 			exit(1);
 		}
+		ifstream f;
 		f.open(fname);
 		if (!f.good()) {
 			auto e = strerror(errno);
 			cerr << "Failed to open " << fname << ": " << e << "\n";
 			exit(1);
 		}
-		for (string line; getline(f, line); )
-			r.emplace_back(line);
-		if (f.bad()) {
-			auto e = strerror(errno);
-			cerr << "Error while reading " << fname << ": " << 
-			    e << "\n";
-			exit(1);
-		}
+		add_lines_from(r, f, fname);
 	}
 }
 
