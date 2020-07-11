@@ -257,23 +257,29 @@ path_vector(char* av[], int ac)
 void
 add_lines(vector<path>& r, const char* fname)
 {
-	ifstream f;
-	if (is_directory(fname)) {
-		cerr << "Can't read directory: " << fname << "\n";
-		exit(1);
-	}
-	f.open(fname);
-	if (!f.good()) {
-		auto e = strerror(errno);
-		cerr << "Failed to open " << fname << ": " << e << "\n";
-		exit(1);
-	}
-	for (string line; getline(f, line); )
-		r.emplace_back(line);
-	if (f.bad()) {
-		auto e = strerror(errno);
-		cerr << "Error while reading " << fname << ": " << e << "\n";
-		exit(1);
+	if (strcmp(fname, "-") == 0) {
+		for (string line; getline(std::cin, line); )
+			r.emplace_back(line);
+	} else {
+		ifstream f;
+		if (is_directory(fname)) {
+			cerr << "Can't read directory: " << fname << "\n";
+			exit(1);
+		}
+		f.open(fname);
+		if (!f.good()) {
+			auto e = strerror(errno);
+			cerr << "Failed to open " << fname << ": " << e << "\n";
+			exit(1);
+		}
+		for (string line; getline(f, line); )
+			r.emplace_back(line);
+		if (f.bad()) {
+			auto e = strerror(errno);
+			cerr << "Error while reading " << fname << ": " << 
+			    e << "\n";
+			exit(1);
+		}
 	}
 }
 
@@ -484,6 +490,11 @@ main(int argc, char* argv[], char* envp[])
 	// and have [args, end_args[  point into w.
 	vector<path> w; // ... so w must be at function scope to avoid gc
 	if (o.recursive) {
+		vector<path> v2 { "." };
+		if (args == end_args) {
+			args = begin(v2);
+			end_args = end(v2);
+		}
 		for (auto it = args; it != end_args; ++it) {
 			if (is_directory(*it)) {
 				// we do also exclude directories
