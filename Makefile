@@ -22,4 +22,8 @@ install:
 clean:
 	-rm -f rr rr.o
 
-.PHONY: clean all install
+# nothing there yet
+check:
+	@true
+	
+.PHONY: clean all install check
