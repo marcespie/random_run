@@ -495,11 +495,18 @@ main(int argc, char* argv[], char* envp[])
 	// and have [args, end_args[  point into w.
 	vector<path> w; // ... so w must be at function scope to avoid gc
 	if (o.recursive) {
+		// no args cases = recurse on .
 		vector<path> v2 { "." };
 		if (args == end_args) {
 			args = begin(v2);
 			end_args = end(v2);
 		}
+		// if we don't really randomize anything
+		// we need to sort each recursion separately!
+		// since we want to preserve arg order BUT filesystem
+		// traversal is random
+		const auto needsort = o.rotate || !o.randomize;
+
 		for (auto it = args; it != end_args; ++it) {
 			auto pos = w.size();
 			if (is_directory(*it)) {
@@ -508,9 +515,7 @@ main(int argc, char* argv[], char* envp[])
 					recurse(it, w, o.recursedirs);
 			} else
 				w.emplace_back(*it);
-			if (o.rotate) 	// in case we just want to rotate args
-					// we need to sort each recursion
-					// result alphabetically
+			if (needsort)
 				sort(begin(w)+pos, end(w));
 		}
 		args = begin(w);
