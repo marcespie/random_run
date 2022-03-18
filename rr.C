@@ -501,12 +501,17 @@ main(int argc, char* argv[], char* envp[])
 			end_args = end(v2);
 		}
 		for (auto it = args; it != end_args; ++it) {
+			auto pos = w.size();
 			if (is_directory(*it)) {
 				// we do also exclude directories
 				if (!any_match(it->c_str(), o.exclude))
 					recurse(it, w, o.recursedirs);
 			} else
 				w.emplace_back(*it);
+			if (o.rotate) 	// in case we just want to rotate args
+					// we need to sort each recursion
+					// result alphabetically
+				sort(begin(w)+pos, end(w));
 		}
 		args = begin(w);
 		end_args = end(w);
