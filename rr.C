@@ -114,6 +114,7 @@ struct options {
 	size_t maxargs = MAXSIZE;
 	size_t margin = 0;
 	size_t maxsize;
+	size_t multiple = 1;
 	vector<regex> start, exclude, only;
 	vector<char*> list;
 };
@@ -174,7 +175,7 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:rRn:m:No:Ox:ps:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:rRn:m:M:No:Ox:ps:")) != -1;)
 		switch(ch) {
 		case 'd':
 			o.dashdash = false;
@@ -195,6 +196,9 @@ get_options(int argc, char* argv[], char* envp[])
 			break;
 		case 'm':
 			get_integer_value(optarg, o.margin);
+			break;
+		case 'M':
+			get_integer_value(optarg, o.multiple);
 			break;
 		case 'N':
 			o.randomize = false;
@@ -522,6 +526,13 @@ main(int argc, char* argv[], char* envp[])
 		end_args = end(w);
 	}
 
+	vector<path> extra;
+	if (o.multiple > 1) {
+		for (size_t i = 0; i != o.multiple; ++i)
+			copy(args, end_args, back_inserter(extra));
+		args = begin(extra);
+		end_args = end(extra);
+	}
 	if (o.start.size())
 		for (auto scan = args; scan != end_args; ++scan)
 			if (any_match(scan->c_str(), o.start))

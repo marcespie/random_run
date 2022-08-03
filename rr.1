@@ -22,6 +22,7 @@
 .Nm
 .Op Fl 1DdEeiNOpRrv
 .Op Fl l Ar list
+.Op Fl M Ar copies
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
 .Op Fl o Ar regex
@@ -91,6 +92,11 @@ to the parameters, each line being a single parameter.
 As usual,
 .Sq -
 stands for standard input.
+.It Fl M Ar copies
+Copies the argument list
+.Ar copies
+time before randomizing anything, so each parameter will appear
+several times.
 .It Fl m Ar margin
 If arguments run too long,
 .Nm
