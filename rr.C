@@ -549,21 +549,30 @@ main(int argc, char* argv[], char* envp[])
 		cerr << "Error: " << MYNAME << "-1 requires arguments\n";
 		usage();
 	}
-	using disttype = std::uniform_int_distribution<decltype(end_args-args)>;
+	auto length = end_args - args;
+
+	using disttype = std::uniform_int_distribution<decltype(length)>;
 	// the actual algorithm that started it all
-	if (o.randomize && end_args != args) {
-		std::random_device rd;
-		std::mt19937 g(rd());
-		if (o.justone || o.rotate) {
-			disttype dis(0, end_args-args-1);
-			if (o.rotate)
-				rotate(args, 
-				    args + (o.rotator ? o.rotator : dis(g)), 
-				    end_args);
-		    	else
-				swap(args[0], args[dis(g)]);
-		} else 
-			shuffle(args, end_args, g);
+	if (o.randomize && length != 0) {
+		if (o.rotator) {
+			if (o.rotator < length)
+				rotate(args, args+o.rotator, end_args);
+			else {
+				cerr << "Error: -P parameter too large\n";
+				usage();
+			}
+		} else {
+			std::random_device rd;
+			std::mt19937 g(rd());
+			if (o.justone || o.rotate) {
+				disttype dis(0, length-1);
+				if (o.rotate)
+					rotate(args, args + dis(g), end_args);
+				else
+					swap(args[0], args[dis(g)]);
+			} else 
+				shuffle(args, end_args, g);
+		}
 	}
 	if (o.justone)
 		end_args = args+1;
