@@ -74,7 +74,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1dDEeiNOpRrv] [-l file] [-m margin] [-n maxargs] [-o regex] [-s start]\n\t[-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1dDEeiNOpRrv] [-l file] [-m margin] [-M repeats] [-n maxargs] [-o regex]\n\t[-s start] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -115,6 +115,7 @@ struct options {
 	size_t margin = 0;
 	size_t maxsize;
 	size_t multiple = 1;
+	size_t rotator = 0;
 	vector<regex> start, exclude, only;
 	vector<char*> list;
 };
@@ -175,7 +176,7 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:rRn:m:M:No:Ox:ps:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:rRn:m:M:No:Ox:pP:s:")) != -1;)
 		switch(ch) {
 		case 'd':
 			o.dashdash = false;
@@ -190,6 +191,10 @@ get_options(int argc, char* argv[], char* envp[])
 		case 'p':
 			o.printonly = true;
 			o.verbose = true;
+			break;
+		case 'P':
+			get_integer_value(optarg, o.rotator);
+			o.rotate = true;
 			break;
 		case 'n':
 			get_integer_value(optarg, o.maxargs);
@@ -546,13 +551,15 @@ main(int argc, char* argv[], char* envp[])
 	}
 	using disttype = std::uniform_int_distribution<decltype(end_args-args)>;
 	// the actual algorithm that started it all
-	if (o.randomize) {
+	if (o.randomize && end_args != args) {
 		std::random_device rd;
 		std::mt19937 g(rd());
 		if (o.justone || o.rotate) {
 			disttype dis(0, end_args-args-1);
 			if (o.rotate)
-				rotate(args, args + dis(g), end_args);
+				rotate(args, 
+				    args + (o.rotator ? o.rotator : dis(g)), 
+				    end_args);
 		    	else
 				swap(args[0], args[dis(g)]);
 		} else 
