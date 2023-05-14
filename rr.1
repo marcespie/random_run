@@ -26,11 +26,12 @@
 .Op Fl m Ar margin
 .Op Fl n Ar maxargs
 .Op Fl o Ar regex
+.Op Fl P Ar n
 .Op Fl s Ar regex
 .Op Fl x Ar regex
 .Bk -words
 .Ar cmd
-.Op flags --
+.Op flags Fl -
 .Ar param1 ...
 .Ek
 .Sh DESCRIPTION
@@ -125,6 +126,11 @@ Run the command exactly once.
 .It Fl o Ar regex
 Only keep parameters that match
 .Ar regex .
+.It Fl P Ar n
+Rotate the arguments a given number of times
+.Ar n
+instead of
+shuffling them.
 .It Fl p
 Do not run anything.
 Consider the full argument list as parameters and randomize
@@ -145,7 +151,6 @@ Echo the command being run before running it.
 Filter out parameters that match
 .Ar regex .
 .El
-.Pp
 .Sh EXAMPLES
 Run command with options on a random list of files:
 .Bd -ragged -offset indent
@@ -176,7 +181,6 @@ Same thing, different options:
 .Bd -ragged -offset indent
 .Nm Fl 1pl Ar file
 .Ed
-.Pp
 .Sh AUTHORS
 The
 .Nm
