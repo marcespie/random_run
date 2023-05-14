@@ -94,6 +94,13 @@ pledge(const char*, const char*)
 }
 #endif
 
+// for the rotator type
+inline auto rotator_position()
+{
+	vector<path> unused;
+	return end(unused) - begin(unused);
+}
+
 const auto MAXSIZE = numeric_limits<size_t>::max();
 //
 // option handling code
@@ -115,7 +122,7 @@ struct options {
 	size_t margin = 0;
 	size_t maxsize;
 	size_t multiple = 1;
-	size_t rotator = 0;
+	decltype(rotator_position()) rotator = 0;
 	vector<regex> start, exclude, only;
 	vector<char*> list;
 };
