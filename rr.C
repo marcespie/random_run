@@ -321,7 +321,9 @@ exec(const vector<const char*>& v)
 	// XXX paths are essentially "movable" strings, so they're const
 	// let's type-pune the const, we won't ever return anyway
 	execvp(v[0], const_cast<char**>(v.data()));
-	system_error("execvp");
+	string k = "can't exec ";
+	k += v[0];
+	system_error(k.c_str());
 }
 
 // ... and maybe coming back for more
