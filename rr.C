@@ -40,6 +40,7 @@ using std::cerr;
 using std::cout;
 using std::cin;
 using std::ifstream;
+using std::ofstream;
 using std::istream;
 using std::string;
 using std::ostream_iterator;
@@ -74,7 +75,7 @@ size_t compute_maxsize(char*[], size_t);
 void
 usage()
 {
-	cerr << "Usage: " << MYNAME << " [-1dDEeiNOpRrv] [-l file] [-m margin] [-M repeats] [-n maxargs] [-o regex]\n\t[-s start] [-x regex] cmd [flags --] params...\n";
+	cerr << "Usage: " << MYNAME << " [-1dDEeiNOpRrv] [-L log] [-l file] [-m margin] [-M repeats] [-n maxargs]\n\t[-o regex] [-s start] [-x regex] cmd [flags --] params...\n";
 	exit(1);
 }
 
@@ -122,6 +123,7 @@ struct options {
 	size_t margin = 0;
 	size_t maxsize;
 	size_t multiple = 1;
+	mutable ofstream logfile;
 	decltype(rotator_position()) rotator = 0;
 	vector<regex> start, exclude, only;
 	vector<char*> list;
@@ -131,6 +133,26 @@ auto
 find_end(const char* s)
 {
 	return s + strlen(s);
+}
+
+template<typename F>
+void
+checked_open(F& f, const char* fname)
+{
+	f.open(fname);
+	if (!f.good()) {
+		auto e = strerror(errno);
+		cerr << "Failed to open " << fname << ": " << e << "\n";
+		exit(1);
+	}
+}
+
+void
+copy_command(const vector<const char *>& v, std::ostream& f)
+{
+	copy(begin(v), end(v), 
+	    ostream_iterator<const char*>(f, " "));
+	f << std::endl;
 }
 
 template<typename T>
@@ -183,7 +205,7 @@ get_options(int argc, char* argv[], char* envp[])
 {
 	options o;
 
-	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:rRn:m:M:No:Ox:pP:s:")) != -1;)
+	for (int ch; (ch = getopt(argc, argv, "v1eDdEil:L:rRn:m:M:No:Ox:pP:s:")) != -1;)
 		switch(ch) {
 		case 'd':
 			o.dashdash = false;
@@ -242,6 +264,8 @@ get_options(int argc, char* argv[], char* envp[])
 		case 'l':
 			o.list.push_back(optarg);
 			break;
+		case 'L':
+			checked_open(o.logfile, optarg);
 		case 'x':
 			add_regex(o.exclude, optarg, o);
 			break;
@@ -294,6 +318,7 @@ add_lines(vector<path>& r, const char* fname)
 			exit(1);
 		}
 		ifstream f;
+		checked_open(f, fname);
 		f.open(fname);
 		if (!f.good()) {
 			auto e = strerror(errno);
@@ -406,11 +431,10 @@ run_commands(it a1, it b1, // the actual command that doesn't change
 			current += strlen(s)+1;
 			v.push_back(s);
 		}
-		if (o.verbose) {
-			copy(begin(v), end(v), 
-			    ostream_iterator<const char*>(cout, " "));
-			cout << std::endl;
-		}
+		if (o.verbose)
+			copy_command(v, cout);
+		if (o.logfile.is_open())
+			copy_command(v, o.logfile);
 		v.push_back(nullptr);
 
 		if (i != b2 && !o.once) {
@@ -464,10 +488,12 @@ recurse(const T& it, vector<path>& w, bool recursedirs)
 int 
 main(int argc, char* argv[], char* envp[])
 {
-	if (pledge("stdio rpath proc exec", NULL) != 0)
+	if (pledge("stdio rpath cpath wpath proc exec", NULL) != 0)
 		system_error("pledge");
 
 	auto o = get_options(argc, argv, envp);
+	if (pledge("stdio rpath proc exec", NULL) != 0)
+		system_error("pledge");
 
 	argc -= optind;
 	argv += optind;
@@ -475,6 +501,9 @@ main(int argc, char* argv[], char* envp[])
 	auto v = path_vector(argv, argc);
 	for (auto& filename: o.list)
 		add_lines(v, filename);
+
+	if (pledge("stdio proc exec", NULL) != 0)
+		system_error("pledge");
 
 	// set things up for o.printonly: no cmd, only args
 	auto cmd = begin(v);

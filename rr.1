@@ -21,6 +21,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 1DdEeiNOpRrv
+.Op Fl L Ar logfile
 .Op Fl l Ar list
 .Op Fl M Ar copies
 .Op Fl m Ar margin
@@ -86,6 +87,10 @@ Note that this is a position-dependent option:
 You can specify case-sensitive regular expressions before
 .Fl i ,
 and case-insensitive after.
+.It Fl L Ar logfile
+Log every executed command to
+.Ar logfile .
+This can be useful for post-mortem retrieval of parameter order.
 .It Fl l Ar list
 Add the contents of file
 .Ar list
