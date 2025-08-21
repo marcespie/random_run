@@ -137,9 +137,9 @@ find_end(const char* s)
 
 template<typename F>
 void
-checked_open(F& f, const char* fname)
+checked_open(F& f, const char* fname, std::ios_base::openmode m)
 {
-	f.open(fname);
+	f.open(fname, m);
 	if (!f.good()) {
 		auto e = strerror(errno);
 		cerr << "Failed to open " << fname << ": " << e << "\n";
@@ -265,7 +265,7 @@ get_options(int argc, char* argv[], char* envp[])
 			o.list.push_back(optarg);
 			break;
 		case 'L':
-			checked_open(o.logfile, optarg);
+			checked_open(o.logfile, optarg, std::ofstream::out | std::ofstream::app);
 		case 'x':
 			add_regex(o.exclude, optarg, o);
 			break;
@@ -318,7 +318,7 @@ add_lines(vector<path>& r, const char* fname)
 			exit(1);
 		}
 		ifstream f;
-		checked_open(f, fname);
+		checked_open(f, fname, std::ifstream::in);
 		f.open(fname);
 		if (!f.good()) {
 			auto e = strerror(errno);
