@@ -492,6 +492,8 @@ main(int argc, char* argv[], char* envp[])
 		system_error("pledge");
 
 	auto o = get_options(argc, argv, envp);
+
+	// XXX rpath is needed for recursive
 	if (pledge("stdio rpath proc exec", NULL) != 0)
 		system_error("pledge");
 
@@ -501,9 +503,6 @@ main(int argc, char* argv[], char* envp[])
 	auto v = path_vector(argv, argc);
 	for (auto& filename: o.list)
 		add_lines(v, filename);
-
-	if (pledge("stdio proc exec", NULL) != 0)
-		system_error("pledge");
 
 	// set things up for o.printonly: no cmd, only args
 	auto cmd = begin(v);
